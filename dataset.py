@@ -10,7 +10,7 @@ class AudioMixingDataset(data.Dataset):
                  mode: str = 'train', seed: int = None, normalize: bool = False):
         """
         :param base_path: path to the data folder;
-        :param chunk_length:
+        :param chunk_length: length (in seconds) of the audio chunk to compute features for;
         :param train_val_test_split: fraction of the data, reserved for the
             train/val/test set correspondingly;
         :param mode: one of ["train", "val", "test"];
@@ -24,6 +24,7 @@ class AudioMixingDataset(data.Dataset):
         self.sr = 44100
         self._tracklist = ['accompaniment', 'bass', 'drums', 'vocals', 'other', 'mixture']
         self._track_mask = None
+        self._loaded_track_i = None
         self._loaded_track = {}
         self.songlist = [song_name for song_name in os.listdir(self._base_path) if
                          os.path.isdir(os.path.join(self._base_path, song_name))]
@@ -55,7 +56,15 @@ class AudioMixingDataset(data.Dataset):
             dataset_len += int(song_duration / self._chunk_length)
         return dataset_len
 
-    def _load_tracks(self, song_i):
+    def _load_tracks(self, song_i: int):
+        """
+        Cache a song not to read if from disk every time. Should be kept in cache until all its chunks
+        are used.
+        :param song_i:
+        """
+        print('[+] Loading track {}'.format(song_i))
+
+        self._loaded_track_i = song_i
         song_name = self.songlist[song_i]
 
         for track_name in self._tracklist:
@@ -71,35 +80,48 @@ class AudioMixingDataset(data.Dataset):
         num_chunks = int(self.song_durations[song_i] / self._chunk_length)
         # mask will show which track chunks were already used
         self._track_mask = np.ones(num_chunks, dtype=np.int8)
-        print(self._track_mask)
 
-    def __getitem__(self, index: int) -> dict:
-        # index - i of the chunk, we have to find i of the song to load it
-        chunk_sum = 0
+    def _unload_tracks(self):
+        print('[-] Unloading track {}'.format(self._loaded_track_i))
+
+        self._loaded_track = {}
+        self._track_mask = None
+        self._loaded_track_i = None
+
+    def _calculate_song_index(self, chunk_i: int) -> int:
         song_i = 0
-        while chunk_sum < index:
-            song_duration = self.song_durations[song_i]
-            chunk_sum += int(song_duration / self._chunk_length)
-            song_i += 1
+        # number of chunks in the first song
+        max_chunk_i = int(self.song_durations[0] / self._chunk_length) - 1
 
         # TODO: fix issue with song index for the last song
-        print(song_i)
+        while chunk_i > max_chunk_i and song_i < len(self.songlist) - 1:
+            song_i += 1
+            max_chunk_i += int(self.song_durations[song_i] / self._chunk_length)
+
+        return song_i
+
+    def __getitem__(self, index: int) -> dict:
+        song_i = self._calculate_song_index(index)
+        print('Song index: ', song_i)
 
         result = {
             'song_name': self.songlist[song_i],
             'song_index': song_i
         }
 
-        if not self._loaded_track:
-            print('[+] Loading track')
+        if not self._loaded_track or self._loaded_track_i != song_i:
+            self._unload_tracks()
             # cache the song not to load it every time
             self._load_tracks(song_i)
 
-        free_chunks = np.argwhere(self._track_mask).squeeze()
+        free_chunks = np.nonzero(self._track_mask)[0]
+        print(free_chunks)
+        print('Num free chunks: ', len(free_chunks))
         # good idea?
         random.seed(None)
         chunk_i = np.random.choice(free_chunks)
-        print(chunk_i)
+        result['chunk_index'] = chunk_i
+        print('Chunk index: ', chunk_i)
 
         i_from = chunk_i * self._chunk_length * self.sr
         i_to = (chunk_i + 1) * self._chunk_length * self.sr
@@ -110,12 +132,10 @@ class AudioMixingDataset(data.Dataset):
             result['{}_feature'.format(track)] = feature
 
         self._track_mask[chunk_i] = 0
-        print(self._track_mask)
+        # print(self._track_mask)
 
         if np.sum(self._track_mask) == 0:
-            print('[-] Unloading track')
-            self._loaded_track = {}
-            self._track_mask = None
+            self._unload_tracks()
 
         return result
 
@@ -127,10 +147,10 @@ class AudioMixingDataset(data.Dataset):
 
 
 if __name__ == '__main__':
-    d = AudioMixingDataset('/media/apelykh/bottomless-pit/datasets/mixing/MUSDB18HQ/train', seed=123)
+    d = AudioMixingDataset('/media/apelykh/bottomless-pit/datasets/mixing/MUSDB18HQ/test',
+                           chunk_length=5, train_val_test_split=(0.0, 0.2, 0.8),
+                           mode='val', seed=123)
     print(len(d))
-    d[1456]
-    d[1457]
-    d[1458]
-    d[1459]
-    d[1460]
+    d[47]['song_index']
+    d[86]['song_index']
+    d[88]['song_index']
