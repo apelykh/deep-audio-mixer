@@ -60,7 +60,7 @@ class AudioMixingDataset(data.Dataset):
         """
         Cache a song not to read if from disk every time. Should be kept in cache until all its chunks
         are used.
-        :param song_i:
+        :param song_i: index of the song to cache;
         """
         print('[+] Loading track {}'.format(song_i))
 
@@ -82,6 +82,9 @@ class AudioMixingDataset(data.Dataset):
         self._track_mask = np.ones(num_chunks, dtype=np.int8)
 
     def _unload_tracks(self):
+        """
+        Reset the song cache.
+        """
         print('[-] Unloading track {}'.format(self._loaded_track_i))
 
         self._loaded_track = {}
@@ -89,11 +92,16 @@ class AudioMixingDataset(data.Dataset):
         self._loaded_track_i = None
 
     def _calculate_song_index(self, chunk_i: int) -> int:
+        """
+        Calculate an index of the song in a song list, based on the chunk index.
+
+        :param chunk_i: index of the song chunk;
+        :return: index of the song in a song list, the chunk will be taken from;
+        """
         song_i = 0
         # number of chunks in the first song
         max_chunk_i = int(self.song_durations[0] / self._chunk_length) - 1
 
-        # TODO: fix issue with song index for the last song
         while chunk_i > max_chunk_i and song_i < len(self.songlist) - 1:
             song_i += 1
             max_chunk_i += int(self.song_durations[song_i] / self._chunk_length)
@@ -125,14 +133,21 @@ class AudioMixingDataset(data.Dataset):
 
         i_from = chunk_i * self._chunk_length * self.sr
         i_to = (chunk_i + 1) * self._chunk_length * self.sr
+        features = []
         for track in self._tracklist:
             audio_chunk = self._loaded_track[track][i_from:i_to]
             result['{}_audio'.format(track)] = audio_chunk
             feature = librosa.feature.melspectrogram(audio_chunk, sr=self.sr, n_fft=2048, hop_length=1024)
-            result['{}_feature'.format(track)] = feature
+            feature = librosa.amplitude_to_db(abs(feature))
+
+            if track != 'mixture':
+                features.append(feature)
+            else:
+                result['gt_features'] = feature
+
+        result['train_features'] = np.stack(features)
 
         self._track_mask[chunk_i] = 0
-        # print(self._track_mask)
 
         if np.sum(self._track_mask) == 0:
             self._unload_tracks()
