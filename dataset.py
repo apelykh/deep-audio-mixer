@@ -7,7 +7,7 @@ from torch.utils import data
 
 class AudioMixingDataset(data.Dataset):
     def __init__(self, base_path: str, chunk_length: int = 5, train_val_test_split: tuple = (1.0, 0.0, 0.0),
-                 mode: str = 'train', seed: int = None, normalize: bool = False):
+                 mode: str = 'train', seed: int = None, normalize: bool = False, verbose=False):
         """
         :param base_path: path to the data folder;
         :param chunk_length: length (in seconds) of the audio chunk to compute features for;
@@ -20,6 +20,7 @@ class AudioMixingDataset(data.Dataset):
         self._base_path = base_path
         self._chunk_length = chunk_length
         self._normalize = normalize
+        self._verbose = verbose
 
         self.sr = 44100
         self._tracklist = ['accompaniment', 'bass', 'drums', 'vocals', 'other', 'mixture']
@@ -62,7 +63,8 @@ class AudioMixingDataset(data.Dataset):
         are used.
         :param song_i: index of the song to cache;
         """
-        print('[+] Loading track {}'.format(song_i))
+        if self._verbose:
+            print('[+] Loading track {}'.format(song_i))
 
         self._loaded_track_i = song_i
         song_name = self.songlist[song_i]
@@ -85,7 +87,8 @@ class AudioMixingDataset(data.Dataset):
         """
         Reset the song cache.
         """
-        print('[-] Unloading track {}'.format(self._loaded_track_i))
+        if self._verbose:
+            print('[-] Unloading track {}'.format(self._loaded_track_i))
 
         self._loaded_track = {}
         self._track_mask = None
@@ -108,9 +111,16 @@ class AudioMixingDataset(data.Dataset):
 
         return song_i
 
+    def compute_features(self, audio: np.ndarray) -> np.ndarray:
+        features = librosa.feature.melspectrogram(audio, sr=self.sr, n_fft=2048, hop_length=1024)
+        features = np.abs(features)
+
+        return features
+
     def __getitem__(self, index: int) -> dict:
         song_i = self._calculate_song_index(index)
-        print('Song index: ', song_i)
+        if self._verbose:
+            print('Song index: ', song_i)
 
         result = {
             'song_name': self.songlist[song_i],
@@ -123,13 +133,15 @@ class AudioMixingDataset(data.Dataset):
             self._load_tracks(song_i)
 
         free_chunks = np.nonzero(self._track_mask)[0]
-        print(free_chunks)
-        print('Num free chunks: ', len(free_chunks))
         # good idea?
         random.seed(None)
         chunk_i = np.random.choice(free_chunks)
         result['chunk_index'] = chunk_i
-        print('Chunk index: ', chunk_i)
+
+        if self._verbose:
+            print(free_chunks)
+            print('Num free chunks: ', len(free_chunks))
+            print('Chunk index: ', chunk_i)
 
         i_from = chunk_i * self._chunk_length * self.sr
         i_to = (chunk_i + 1) * self._chunk_length * self.sr
@@ -137,8 +149,7 @@ class AudioMixingDataset(data.Dataset):
         for track in self._tracklist:
             audio_chunk = self._loaded_track[track][i_from:i_to]
             result['{}_audio'.format(track)] = audio_chunk
-            feature = librosa.feature.melspectrogram(audio_chunk, sr=self.sr, n_fft=2048, hop_length=1024)
-            feature = librosa.amplitude_to_db(abs(feature))
+            feature = self.compute_features(audio_chunk)
 
             if track != 'mixture':
                 features.append(feature)
@@ -157,15 +168,8 @@ class AudioMixingDataset(data.Dataset):
     def get_num_songs(self) -> int:
         return len(self.songlist)
 
+    def get_tracklist(self) -> list:
+        return self._tracklist
+
     def __len__(self) -> int:
         return self._len
-
-
-if __name__ == '__main__':
-    d = AudioMixingDataset('/media/apelykh/bottomless-pit/datasets/mixing/MUSDB18HQ/test',
-                           chunk_length=5, train_val_test_split=(0.0, 0.2, 0.8),
-                           mode='val', seed=123)
-    print(len(d))
-    d[47]['song_index']
-    d[86]['song_index']
-    d[88]['song_index']
