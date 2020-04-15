@@ -9,7 +9,7 @@ class MixingModel(nn.Module):
 
         # stack of 5 spectrograms as input
         # [:, 5, 128, 216]
-        self.conv1 = nn.Conv2d(5, 8, 3, padding=1)
+        self.conv1 = nn.Conv2d(4, 8, 3, padding=1)
         self.f_pool1 = nn.MaxPool2d((2, 1))
         # [:, 8, 64, 216]
         self.conv2 = nn.Conv2d(8, 16, 3, padding=1)
@@ -32,7 +32,6 @@ class MixingModel(nn.Module):
         self.conv_head2 = nn.Conv1d(128, 1, 3, padding=1)
         self.conv_head3 = nn.Conv1d(128, 1, 3, padding=1)
         self.conv_head4 = nn.Conv1d(128, 1, 3, padding=1)
-        self.conv_head5 = nn.Conv1d(128, 1, 3, padding=1)
 
     @staticmethod
     def _normalize_tensor(x):
@@ -74,19 +73,15 @@ class MixingModel(nn.Module):
         x2 = self.conv_head2(res)
         x3 = self.conv_head3(res)
         x4 = self.conv_head4(res)
-        x5 = self.conv_head5(res)
-        # print(x5.shape)
 
         masked = torch.zeros_like(x[:, 0])
         masked += x1 * x[:, 0]
         masked += x2 * x[:, 1]
         masked += x3 * x[:, 2]
         masked += x4 * x[:, 3]
-        masked += x5 * x[:, 4]
         # masked += self._normalize_tensor(x1) * x[:, 0]
         # masked += self._normalize_tensor(x2) * x[:, 1]
         # masked += self._normalize_tensor(x3) * x[:, 2]
         # masked += self._normalize_tensor(x4) * x[:, 3]
-        # masked += self._normalize_tensor(x5) * x[:, 4]
 
-        return masked, tuple(elem.view((-1, 216)) for elem in (x1, x2, x3, x4, x5))
+        return masked, tuple(elem.view((-1, 216)) for elem in (x1, x2, x3, x4))

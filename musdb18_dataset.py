@@ -5,9 +5,9 @@ import librosa
 from torch.utils import data
 
 
-class AudioMixingDataset(data.Dataset):
+class MusDB18MixingDataset(data.Dataset):
     def __init__(self, base_path: str, chunk_length: int = 5, train_val_test_split: tuple = (1.0, 0.0, 0.0),
-                 mode: str = 'train', seed: int = None, normalize: bool = False, verbose=False):
+                 mode: str = 'train', seed: int = None, normalize: bool = True, verbose=False):
         """
         :param base_path: path to the data folder;
         :param chunk_length: length (in seconds) of the audio chunk to compute features for;
@@ -23,7 +23,8 @@ class AudioMixingDataset(data.Dataset):
         self._verbose = verbose
 
         self.sr = 44100
-        self._tracklist = ['accompaniment', 'bass', 'drums', 'vocals', 'other', 'mixture']
+        # 'accompaniment' consists of 'bass', 'drums', 'other'; should not be used!
+        self._tracklist = ['bass', 'drums', 'vocals', 'other', 'mixture']
         self._track_mask = None
         self._loaded_track_i = None
         self._loaded_track = {}
@@ -76,8 +77,8 @@ class AudioMixingDataset(data.Dataset):
             len_samples = int(self.song_durations[song_i] * self.sr)
             self._loaded_track[track_name] = self._loaded_track[track_name][:len_samples]
 
-            if self._normalize:
-                self._loaded_track[track_name] = librosa.util.normalize(self._loaded_track[track_name])
+            # if self._normalize:
+            #     self._loaded_track[track_name] = librosa.util.normalize(self._loaded_track[track_name])
 
         num_chunks = int(self.song_durations[song_i] / self._chunk_length)
         # mask will show which track chunks were already used
@@ -113,7 +114,12 @@ class AudioMixingDataset(data.Dataset):
 
     def compute_features(self, audio: np.ndarray) -> np.ndarray:
         features = librosa.feature.melspectrogram(audio, sr=self.sr, n_fft=2048, hop_length=1024)
-        features = np.abs(features)
+        # to dB?
+        features = librosa.amplitude_to_db(np.abs(features))
+
+        if self._normalize:
+            features_min = np.min(features)
+            features = (features - features_min) / np.max(features) - features_min
 
         return features
 
