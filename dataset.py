@@ -5,11 +5,14 @@ import librosa
 from torch.utils import data
 
 
-class MedleyDBMixingDataset(data.Dataset):
-    def __init__(self, base_path: str, chunk_length: int = 5, train_val_test_split: tuple = (1.0, 0.0, 0.0),
-                 mode: str = 'train', seed: int = None, normalize: bool = True, verbose=False):
+class MultitrackAudioDataset(data.Dataset):
+    def __init__(self, base_path: str, songlist: list = None, chunk_length: int = 5,
+                 sr: int = 44100,
+                 train_val_test_split: tuple = (1.0, 0.0, 0.0), mode: str = 'train',
+                 seed: int = None, normalize: bool = True, verbose=False):
         """
-        :param base_path: path to the data folder;
+        :param base_path: path to the data folder root;
+        :param songlist: if set, only songs from the list will be loaded;
         :param chunk_length: length (in seconds) of the audio chunk to compute features for;
         :param train_val_test_split: fraction of the data, reserved for the
             train/val/test set correspondingly;
@@ -21,15 +24,17 @@ class MedleyDBMixingDataset(data.Dataset):
         self._chunk_length = chunk_length
         self._normalize = normalize
         self._verbose = verbose
-
-        self.sr = 44100
-        # 'accompaniment' consists of 'bass', 'drums', 'other'; should not be used!
-        self._tracklist = ['bass', 'drums', 'vocals', 'other', 'mixture']
+        self._sr = sr
+        self._tracklist = ['bass', 'drums', 'vocals', 'other', 'mix']
         self._track_mask = None
         self._loaded_track_i = None
         self._loaded_track = {}
-        self.songlist = [song_name for song_name in os.listdir(self._base_path) if
-                         os.path.isdir(os.path.join(self._base_path, song_name))]
+
+        if songlist:
+            self.songlist = songlist
+        else:
+            self.songlist = [song_name for song_name in os.listdir(self._base_path) if
+                             os.path.isdir(os.path.join(self._base_path, song_name))]
         if seed:
             random.seed(seed)
         random.shuffle(self.songlist)
@@ -49,9 +54,8 @@ class MedleyDBMixingDataset(data.Dataset):
     def _calculate_dataset_length(self) -> int:
         dataset_len = 0
         for song_name in self.songlist:
-            track_name = 'mixture'
-            track_path = os.path.join(self._base_path, song_name, '{}.wav'.format(track_name))
-            song_duration = librosa.get_duration(filename=track_path, sr=self.sr)
+            track_path = os.path.join(self._base_path, song_name, '{}_MIX.wav'.format(song_name))
+            song_duration = librosa.get_duration(filename=track_path, sr=self._sr)
             # self.song_durations.append(song_duration)
             self.song_durations.append(song_duration - (song_duration % self._chunk_length))
 
@@ -60,8 +64,9 @@ class MedleyDBMixingDataset(data.Dataset):
 
     def _load_tracks(self, song_i: int):
         """
-        Cache a song not to read if from disk every time. Should be kept in cache until all its chunks
-        are used.
+        Cache a song to avoid reading if from disk every time.
+        Should be kept in cache until all its chunks are used.
+
         :param song_i: index of the song to cache;
         """
         if self._verbose:
@@ -71,10 +76,17 @@ class MedleyDBMixingDataset(data.Dataset):
         song_name = self.songlist[song_i]
 
         for track_name in self._tracklist:
-            track_path = os.path.join(self._base_path, song_name, '{}.wav'.format(track_name))
-            self._loaded_track[track_name], _ = librosa.load(track_path, sr=self.sr)
+            # track_path = os.path.join(self._base_path, song_name, '{}.wav'.format(track_name))
+
+            if track_name == 'mix':
+                track_path = os.path.join(self._base_path, song_name, '{}_MIX.wav'.format(song_name))
+            else:
+                track_path = os.path.join(self._base_path, song_name, '{}_STEMS_JOINED'.format(song_name),
+                                          '{}_STEM_{}.wav'.format(song_name, track_name.upper()))
+
+            self._loaded_track[track_name], _ = librosa.load(track_path, sr=self._sr)
             # trim the track length to be a multiple of self._chunk_length
-            len_samples = int(self.song_durations[song_i] * self.sr)
+            len_samples = int(self.song_durations[song_i] * self._sr)
             self._loaded_track[track_name] = self._loaded_track[track_name][:len_samples]
 
             # if self._normalize:
@@ -113,7 +125,7 @@ class MedleyDBMixingDataset(data.Dataset):
         return song_i
 
     def compute_features(self, audio: np.ndarray) -> np.ndarray:
-        features = librosa.feature.melspectrogram(audio, sr=self.sr, n_fft=2048, hop_length=1024)
+        features = librosa.feature.melspectrogram(audio, sr=self._sr, n_fft=2048, hop_length=1024)
         # to dB?
         features = librosa.amplitude_to_db(np.abs(features))
 
@@ -151,15 +163,16 @@ class MedleyDBMixingDataset(data.Dataset):
             print('Num free chunks: ', len(free_chunks))
             print('Chunk index: ', chunk_i)
 
-        i_from = chunk_i * self._chunk_length * self.sr
-        i_to = (chunk_i + 1) * self._chunk_length * self.sr
+        i_from = chunk_i * self._chunk_length * self._sr
+        i_to = (chunk_i + 1) * self._chunk_length * self._sr
         features = []
+
         for track in self._tracklist:
             audio_chunk = self._loaded_track[track][i_from:i_to]
             result['{}_audio'.format(track)] = audio_chunk
             feature = self.compute_features(audio_chunk)
 
-            if track != 'mixture':
+            if track != 'mix':
                 features.append(feature)
             else:
                 result['gt_features'] = feature

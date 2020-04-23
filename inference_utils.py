@@ -30,9 +30,9 @@ def interpolate_mask(spec_mask: np.ndarray, tgt_len: int) -> np.ndarray:
 
 def mix_song(dataset, model, loaded_tracks: dict, chunk_length=5, sr=44100,
              dummy_masks=False) -> np.ndarray:
-    mixed_song = np.zeros(len(loaded_tracks['mixture']))
+    mixed_song = np.zeros(len(loaded_tracks['mix']))
     chunk_samples = chunk_length * sr
-    num_chunks = int(len(loaded_tracks['mixture']) / chunk_samples)
+    num_chunks = int(len(loaded_tracks['mix']) / chunk_samples)
 
     for chunk_i in range(1, num_chunks):
         i_from = (chunk_i - 1) * chunk_samples
@@ -40,7 +40,7 @@ def mix_song(dataset, model, loaded_tracks: dict, chunk_length=5, sr=44100,
 
         features = []
         for track in dataset.get_tracklist():
-            if track != 'mixture':
+            if track != 'mix':
                 feature = dataset.compute_features(loaded_tracks[track][i_from:i_to])
                 features.append(feature)
 
@@ -50,7 +50,7 @@ def mix_song(dataset, model, loaded_tracks: dict, chunk_length=5, sr=44100,
 
         mixed_chunk = np.zeros(chunk_samples)
         for i, track in enumerate(dataset.get_tracklist()):
-            if track != 'mixture':
+            if track != 'mix':
                 # extra batch dimension -> squeeze
                 spec_mask = np.squeeze(masks[i].to('cpu').detach().numpy())
 
