@@ -4,7 +4,7 @@ import torch
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-def interpolate_mask(spec_mask: np.ndarray, tgt_len: int) -> np.ndarray:
+def interpolate_mask(spec_mask: np.array, tgt_len: int) -> np.array:
     assert len(spec_mask) <= tgt_len, "Target mask should be longer than the initial one"
 
     sample_mask = np.zeros(tgt_len)
@@ -28,8 +28,11 @@ def interpolate_mask(spec_mask: np.ndarray, tgt_len: int) -> np.ndarray:
     return sample_mask
 
 
-def mix_song(dataset, model, loaded_tracks: dict, chunk_length=5, sr=44100,
+def mix_song(dataset, model, loaded_tracks: dict, chunk_length=1, sr=44100,
              dummy_masks=False) -> np.ndarray:
+    """
+    Sequentially apply the model to all the song chunks to produce the full mixed song.
+    """
     mixed_song = np.zeros(len(loaded_tracks['mix']))
     chunk_samples = chunk_length * sr
     num_chunks = int(len(loaded_tracks['mix']) / chunk_samples)
@@ -46,6 +49,7 @@ def mix_song(dataset, model, loaded_tracks: dict, chunk_length=5, sr=44100,
 
         feature_stack = np.stack(features)
         feature_tensor = torch.Tensor(feature_stack[np.newaxis, :])
+        # obtain gain masks for the current chunk
         _, masks = model(feature_tensor.to(device))
 
         mixed_chunk = np.zeros(chunk_samples)
@@ -54,12 +58,13 @@ def mix_song(dataset, model, loaded_tracks: dict, chunk_length=5, sr=44100,
                 # extra batch dimension -> squeeze
                 spec_mask = np.squeeze(masks[i].to('cpu').detach().numpy())
 
-                # testing the function: sum all the tracks with equal weights
-                if dummy_masks:
-                    spec_mask = np.ones_like(spec_mask)
-
-                sample_mask = interpolate_mask(spec_mask, chunk_samples)
-                mixed_chunk += loaded_tracks[track][i_from:i_to] * sample_mask
+                # # testing the function: sum all the tracks with equal weights
+                # if dummy_masks:
+                #     spec_mask = np.ones_like(spec_mask)
+                #
+                # sample_mask = interpolate_mask(spec_mask, chunk_samples)
+                print(spec_mask)
+                mixed_chunk += loaded_tracks[track][i_from:i_to] * (1 + spec_mask)
 
         mixed_song[i_from:i_to] = mixed_chunk
 

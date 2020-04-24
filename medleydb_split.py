@@ -128,3 +128,27 @@ test_songlist = [
     'TheScarletBrand_LesFleursDuMal',   # terrible GT mix
     'TheSoSoGlos_Emergency'             # !
 ]
+
+not_in_musdb18 = [
+    'AimeeNorwich_Flying',
+    'ChrisJacoby_BoothShotLincoln',
+    'ChrisJacoby_PigsFoot',
+    'ClaraBerryAndWooldog_Boys',
+    'CroqueMadame_Oil',
+    'CroqueMadame_Pilot',
+    'FamilyBand_Again',
+    'KarimDouaidy_Hopscotch',
+    'KarimDouaidy_Yatora',
+    'MusicDelta_BebopJazz',
+    'MusicDelta_CoolJazz',
+    'MusicDelta_FreeJazz',
+    'MusicDelta_FunkJazz',
+    'MusicDelta_FusionJazz',
+    'MusicDelta_LatinJazz',
+    'MusicDelta_ModalJazz',
+    'MusicDelta_Shadows',
+    'MusicDelta_SpeedMetal',
+    'MusicDelta_SwingJazz',
+    'MusicDelta_Zeppelin',
+    'PurlingHiss_Lolita'
+]

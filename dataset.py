@@ -6,7 +6,7 @@ from torch.utils import data
 
 
 class MultitrackAudioDataset(data.Dataset):
-    def __init__(self, base_path: str, songlist: list = None, chunk_length: int = 5,
+    def __init__(self, base_path: str, songlist: list = None, chunk_length: int = 1,
                  sr: int = 44100,
                  train_val_test_split: tuple = (1.0, 0.0, 0.0), mode: str = 'train',
                  seed: int = None, normalize: bool = True, verbose=False):
@@ -76,8 +76,6 @@ class MultitrackAudioDataset(data.Dataset):
         song_name = self.songlist[song_i]
 
         for track_name in self._tracklist:
-            # track_path = os.path.join(self._base_path, song_name, '{}.wav'.format(track_name))
-
             if track_name == 'mix':
                 track_path = os.path.join(self._base_path, song_name, '{}_MIX.wav'.format(song_name))
             else:
@@ -89,8 +87,8 @@ class MultitrackAudioDataset(data.Dataset):
             len_samples = int(self.song_durations[song_i] * self._sr)
             self._loaded_track[track_name] = self._loaded_track[track_name][:len_samples]
 
-            # if self._normalize:
-            #     self._loaded_track[track_name] = librosa.util.normalize(self._loaded_track[track_name])
+            if self._normalize:
+                self._loaded_track[track_name] = librosa.util.normalize(self._loaded_track[track_name])
 
         num_chunks = int(self.song_durations[song_i] / self._chunk_length)
         # mask will show which track chunks were already used
@@ -125,13 +123,14 @@ class MultitrackAudioDataset(data.Dataset):
         return song_i
 
     def compute_features(self, audio: np.ndarray) -> np.ndarray:
-        features = librosa.feature.melspectrogram(audio, sr=self._sr, n_fft=2048, hop_length=1024)
-        # to dB?
+        features = librosa.feature.melspectrogram(y=audio, sr=self._sr, n_fft=2048, hop_length=1024)
+        # features = np.abs(librosa.stft(audio, n_fft=2048, hop_length=1024))
         features = librosa.amplitude_to_db(np.abs(features))
 
         if self._normalize:
-            features_min = np.min(features)
-            features = (features - features_min) / np.max(features) - features_min
+            features = librosa.util.normalize(features)
+        #     features_min = np.min(features)
+        #     features = (features - features_min) / np.max(features) - features_min
 
         # print('min: {}, max: {}'.format(np.min(features), np.max(features)))
 
@@ -153,7 +152,6 @@ class MultitrackAudioDataset(data.Dataset):
             self._load_tracks(song_i)
 
         free_chunks = np.nonzero(self._track_mask)[0]
-        # good idea?
         random.seed(None)
         chunk_i = np.random.choice(free_chunks)
         result['chunk_index'] = chunk_i
@@ -178,9 +176,10 @@ class MultitrackAudioDataset(data.Dataset):
                 result['gt_features'] = feature
 
         result['train_features'] = np.stack(features)
-
+        # indicate that the current song chunk was used
         self._track_mask[chunk_i] = 0
-
+        # if it was the last chunk of the current song, unload it
+        # to load a new one on the next iteration
         if np.sum(self._track_mask) == 0:
             self._unload_tracks()
 

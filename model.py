@@ -8,7 +8,7 @@ class MixingModel(nn.Module):
         super().__init__()
 
         # stack of 5 spectrograms as input
-        # [:, 5, 128, 216]
+        # [:, 4, 128, 44]
         self.conv1 = nn.Conv2d(4, 8, 3, padding=1)
         self.f_pool1 = nn.MaxPool2d((2, 1))
         # [:, 8, 64, 216]
@@ -66,13 +66,16 @@ class MixingModel(nn.Module):
         res = F.relu(self.conv6(res))
         # print(res.shape)
 
-        res = res.view((-1, 128, 216))
+        # res = res.view((-1, 128, 216))
+        res = res.view((-1, 128, 44))
         # print(res.shape)
 
         x1 = self.conv_head1(res)
         x2 = self.conv_head2(res)
         x3 = self.conv_head3(res)
         x4 = self.conv_head4(res)
+
+
 
         masked = torch.zeros_like(x[:, 0])
         masked += x1 * x[:, 0]
@@ -84,4 +87,4 @@ class MixingModel(nn.Module):
         # masked += self._normalize_tensor(x3) * x[:, 2]
         # masked += self._normalize_tensor(x4) * x[:, 3]
 
-        return masked, tuple(elem.view((-1, 216)) for elem in (x1, x2, x3, x4))
+        return masked, tuple(elem.view((-1, 44)) for elem in (x1, x2, x3, x4))
