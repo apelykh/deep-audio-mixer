@@ -3,12 +3,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-class MixingModel(nn.Module):
+class MixingModelScalar(nn.Module):
     def __init__(self):
         super().__init__()
 
         # stack of 4 spectrograms as input
-        # [:, 4, 128, 44]
         self.conv1_1 = nn.Conv2d(4, 8, kernel_size=(5, 3))
         self.conv1_2 = nn.Conv2d(8, 12, kernel_size=(5, 3))
         self.f_pool1 = nn.MaxPool2d((2, 2))
@@ -24,25 +23,18 @@ class MixingModel(nn.Module):
         self.f_pool3 = nn.MaxPool2d((2, 1))
         self.bn3 = nn.BatchNorm2d(48)
 
-        self.conv4_1 = nn.Conv2d(48, 64, kernel_size=(3, 3))
-        self.conv4_2 = nn.Conv2d(64, 96, kernel_size=(3, 3))
-        self.bn4 = nn.BatchNorm2d(96)
-
-        self.conv5 = nn.Conv2d(96, 128, kernel_size=(3, 3))
-        self.bn5 = nn.BatchNorm2d(128)
-
         # each head produces a gain coefficient for a dedicated track
-        self.conv_head1 = nn.Conv2d(128, 1, kernel_size=(1, 1))
-        self.fc_head1 = nn.Linear(30, 1)
+        self.conv_head1 = nn.Conv2d(48, 1, kernel_size=(1, 1))
+        self.fc_head1 = nn.Linear(1476, 1)
 
-        self.conv_head2 = nn.Conv2d(128, 1, kernel_size=(1, 1))
-        self.fc_head2 = nn.Linear(30, 1)
+        self.conv_head2 = nn.Conv2d(48, 1, kernel_size=(1, 1))
+        self.fc_head2 = nn.Linear(1476, 1)
 
-        self.conv_head3 = nn.Conv2d(128, 1, kernel_size=(1, 1))
-        self.fc_head3 = nn.Linear(30, 1)
+        self.conv_head3 = nn.Conv2d(48, 1, kernel_size=(1, 1))
+        self.fc_head3 = nn.Linear(1476, 1)
 
-        self.conv_head4 = nn.Conv2d(128, 1, kernel_size=(1, 1))
-        self.fc_head4 = nn.Linear(30, 1)
+        self.conv_head4 = nn.Conv2d(48, 1, kernel_size=(1, 1))
+        self.fc_head4 = nn.Linear(1476, 1)
 
     def forward(self, x):
         """
@@ -51,37 +43,23 @@ class MixingModel(nn.Module):
         :return: sum of masked track spectrograms +
         mask for each track to apply them to audio during test time
         """
-        # [:, 4, 128, 44]
+        # [:, 4, 1025, 44]
         res = F.relu(self.conv1_1(x))
         res = F.relu(self.conv1_2(res))
         res = self.f_pool1(res)
         res = self.bn1(res)
-        # print(res.shape)
 
         res = F.relu(self.conv2_1(res))
         res = F.relu(self.conv2_2(res))
         res = self.f_pool2(res)
         res = self.bn2(res)
-        # print(res.shape)
 
         res = F.relu(self.conv3_1(res))
         res = F.relu(self.conv3_2(res))
         res = self.f_pool3(res)
         res = self.bn3(res)
-        # print(res.shape)
-
-        res = F.relu(self.conv4_1(res))
-        res = F.relu(self.conv4_2(res))
-        # res = self.f_pool4(res)
-        res = self.bn4(res)
-        # print(res.shape)
-
-        res = F.relu(self.conv5(res))
-        res = self.bn5(res)
-        # print('!!: ', res.shape)
 
         m1 = F.relu(self.conv_head1(res))
-        # print(m1.view((x.size()[0], -1)).shape)
         m1 = self.fc_head1(m1.view((x.size()[0], -1)))
 
         m2 = F.relu(self.conv_head2(res))
@@ -94,7 +72,6 @@ class MixingModel(nn.Module):
         m4 = self.fc_head4(m4.view((x.size()[0], -1)))
 
         ones = torch.ones_like(m1)
-        # print(ones.shape)
 
         masked = torch.zeros_like(x[:, 0])
         masked += (ones + m1).unsqueeze(2) * x[:, 0]

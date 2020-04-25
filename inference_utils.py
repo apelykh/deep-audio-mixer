@@ -28,14 +28,13 @@ def interpolate_mask(spec_mask: np.array, tgt_len: int) -> np.array:
     return sample_mask
 
 
-def mix_song(dataset, model, loaded_tracks: dict, chunk_length=1, sr=44100,
-             dummy_masks=False) -> np.ndarray:
+def mix_song(dataset, model, loaded_tracks: dict, chunk_length=1, sr=44100) -> np.array:
     """
     Sequentially apply the model to all the song chunks to produce the full mixed song.
     """
-    mixed_song = np.zeros(len(loaded_tracks['mix']))
+    mixed_song = np.zeros(len(loaded_tracks['drums']))
     chunk_samples = chunk_length * sr
-    num_chunks = int(len(loaded_tracks['mix']) / chunk_samples)
+    num_chunks = int(len(loaded_tracks['drums']) / chunk_samples)
 
     for chunk_i in range(1, num_chunks):
         i_from = (chunk_i - 1) * chunk_samples
@@ -47,7 +46,9 @@ def mix_song(dataset, model, loaded_tracks: dict, chunk_length=1, sr=44100,
                 feature = dataset.compute_features(loaded_tracks[track][i_from:i_to])
                 features.append(feature)
 
+        # stack spectrograms of all tracks the same way we did during training
         feature_stack = np.stack(features)
+        # adding a "batch" dimension
         feature_tensor = torch.Tensor(feature_stack[np.newaxis, :])
         # obtain gain masks for the current chunk
         _, masks = model(feature_tensor.to(device))
@@ -57,14 +58,12 @@ def mix_song(dataset, model, loaded_tracks: dict, chunk_length=1, sr=44100,
             if track != 'mix':
                 # extra batch dimension -> squeeze
                 spec_mask = np.squeeze(masks[i].to('cpu').detach().numpy())
-
-                # # testing the function: sum all the tracks with equal weights
-                # if dummy_masks:
-                #     spec_mask = np.ones_like(spec_mask)
-                #
-                # sample_mask = interpolate_mask(spec_mask, chunk_samples)
-                print(spec_mask)
-                mixed_chunk += loaded_tracks[track][i_from:i_to] * (1 + spec_mask)
+                # a hacky way to differentiate between 1d mask and a scalar value
+                if spec_mask.shape:
+                    sample_mask = interpolate_mask(spec_mask, chunk_samples)
+                else:
+                    sample_mask = spec_mask
+                mixed_chunk += loaded_tracks[track][i_from:i_to] * sample_mask
 
         mixed_song[i_from:i_to] = mixed_chunk
 

@@ -1,3 +1,4 @@
+# Do not use, they are trashy for one reason or another
 exclude_songlist = [
     'AmarLal_Rest',
     'AmarLal_SpringDay1',
@@ -64,7 +65,9 @@ train_songlist = [
     'AlexanderRoss_VelvetCurtain',
     'Auctioneer_OurFutureFaces',
     'AvaLuna_Waterduct',
+    'BigTroubles_Phantom',
     'CelestialShore_DieForUs',
+    'ChrisJacoby_PigsFoot',             # instrumental
     'ClaraBerryAndWooldog_AirTraffic',
     'ClaraBerryAndWooldog_Boys',
     'ClaraBerryAndWooldog_Stella',
@@ -86,19 +89,17 @@ train_songlist = [
     'MatthewEntwistle_DontYouEver',
     'NightPanther_Fire',
     'PortStWillow_StayEven',
-    'PurlingHiss_Lolita',
     'SecretMountains_HighHorse',
     'Snowmine_Curfews',
     'StevenClark_Bounty',
     'StrandOfOaks_Spacestation',
     'SweetLights_YouLetMeDown',
-    'TheDistricts_Vermont'
+    'TheDistricts_Vermont',
+    'TheSoSoGlos_Emergency'
 ]
 
 test_songlist = [
-    'BigTroubles_Phantom',              # !
     'ChrisJacoby_BoothShotLincoln',     # instrumental
-    'ChrisJacoby_PigsFoot',             # instrumental
     'Meaxic_TakeAStep',
     'Meaxic_YouListen',
     'MusicDelta_80sRock',
@@ -125,10 +126,11 @@ test_songlist = [
     'MusicDelta_SpeedMetal',            # instrumental
     'MusicDelta_SwingJazz',             # instrumental
     'MusicDelta_Zeppelin',              # instrumental
+    'PurlingHiss_Lolita',               # !!
     'TheScarletBrand_LesFleursDuMal',   # terrible GT mix
-    'TheSoSoGlos_Emergency'             # !
 ]
 
+# Tracks from MedleyDB that are not in MUSDB18
 not_in_musdb18 = [
     'AimeeNorwich_Flying',
     'ChrisJacoby_BoothShotLincoln',
