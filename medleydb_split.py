@@ -25,26 +25,26 @@ exclude_songlist = [
     'MatthewEntwistle_TheFlaxenField',
     'MichaelKropf_AllGoodThings',
     'Mozart_BesterJungling',
-    'Mozart_DiesBildnis',
-    'MusicDelta_Beethoven',
+    'Mozart_DiesBildnis',                         # classics
+    'MusicDelta_Beethoven',                       # classics
     'MusicDelta_ChineseChaoZhou',                 # too few stems
     'MusicDelta_ChineseDrama',                    # too few stems
     'MusicDelta_ChineseHenan',                    # too few stems
     'MusicDelta_ChineseJiangNan',                 # too few stems
     'MusicDelta_ChineseXinJing',                  # too few stems
     'MusicDelta_ChineseYaoZu',                    # too few stems
-    'MusicDelta_GriegTrolltog',
-    'MusicDelta_InTheHalloftheMountainKing',
-    'MusicDelta_Pachelbel',
-    'MusicDelta_Vivaldi',
+    'MusicDelta_GriegTrolltog',                   # classics
+    'MusicDelta_InTheHalloftheMountainKing',      # classics
+    'MusicDelta_Pachelbel',                       # classics
+    'MusicDelta_Vivaldi',                         # classics
     'Phoenix_BrokenPledgeChicagoReel',            # too few stems
     'Phoenix_ColliersDaughter',                   # too few stems
     'Phoenix_ElzicsFarewell',                     # too few stems
     'Phoenix_LarkOnTheStrandDrummondCastle',      # too few stems
     'Phoenix_ScotchMorris',                       # too few stems
     'Phoenix_SeanCaughlinsTheScartaglen',         # too few stems
-    'Schubert_Erstarrung',
-    'Schumann_Mignon',
+    'Schubert_Erstarrung',                        # classics
+    'Schumann_Mignon',                            # classics
     'TablaBreakbeatScience_Animoog',              # nothing to learn
     'TablaBreakbeatScience_CaptainSky',           # too few stems
     'TablaBreakbeatScience_MiloVsMongo',          # too few stems
@@ -54,7 +54,7 @@ exclude_songlist = [
     'TablaBreakbeatScience_Scorpio',              # too few stems
     'TablaBreakbeatScience_Vger',                 # too few stems
     'TablaBreakbeatScience_WhoIsIt',              # nothing to learn
-    'Wolf_DieBekherte'
+    'Wolf_DieBekherte'                            # classics
 ]
 
 train_songlist = [
@@ -67,24 +67,24 @@ train_songlist = [
     'AvaLuna_Waterduct',
     'BigTroubles_Phantom',
     'CelestialShore_DieForUs',
-    'ChrisJacoby_PigsFoot',             # instrumental
+    'ChrisJacoby_PigsFoot',                       # instrumental
     'ClaraBerryAndWooldog_AirTraffic',
     'ClaraBerryAndWooldog_Boys',
     'ClaraBerryAndWooldog_Stella',
     'ClaraBerryAndWooldog_WaltzForMyVictims',
     'Creepoid_OldTree',
-    'CroqueMadame_Oil',                 # instrumental
-    'CroqueMadame_Pilot',               # instrumental
+    'CroqueMadame_Oil',                           # instrumental
+    'CroqueMadame_Pilot',                         # instrumental
     'DreamersOfTheGhetto_HeavyLove',
     'FacesOnFilm_WaitingForGa',
     'FamilyBand_Again',
-    'Grants_PunchDrunk',                # rap
+    'Grants_PunchDrunk',                          # rap
     'HeladoNegro_MitadDelMundo',
     'HezekiahJones_BorrowedHeart',
     'HopAlong_SisterCities',
     'InvisibleFamiliars_DisturbingWildlife',
-    'KarimDouaidy_Hopscotch',           # instrumental
-    'KarimDouaidy_Yatora',              # instrumental
+    'KarimDouaidy_Hopscotch',                     # instrumental
+    'KarimDouaidy_Yatora',                        # instrumental
     'Lushlife_ToynbeeSuite',
     'MatthewEntwistle_DontYouEver',
     'NightPanther_Fire',
@@ -98,36 +98,37 @@ train_songlist = [
     'TheSoSoGlos_Emergency'
 ]
 
+# not suitable for training but too good to be excluded
 test_songlist = [
-    'ChrisJacoby_BoothShotLincoln',     # instrumental
+    'ChrisJacoby_BoothShotLincoln',               # instrumental
     'Meaxic_TakeAStep',
     'Meaxic_YouListen',
     'MusicDelta_80sRock',
     'MusicDelta_Beatles',
     'MusicDelta_BebopJazz',
     'MusicDelta_Britpop',
-    'MusicDelta_CoolJazz',              # instrumental
+    'MusicDelta_CoolJazz',                        # instrumental
     'MusicDelta_Country1',
     'MusicDelta_Country2',
     'MusicDelta_Disco',
-    'MusicDelta_FreeJazz',              # instrumental
-    'MusicDelta_FunkJazz',              # instrumental
-    'MusicDelta_FusionJazz',            # instrumental
+    'MusicDelta_FreeJazz',                        # instrumental
+    'MusicDelta_FunkJazz',                        # instrumental
+    'MusicDelta_FusionJazz',                      # instrumental
     'MusicDelta_Gospel',
     'MusicDelta_Grunge',
     'MusicDelta_Hendrix',
-    'MusicDelta_LatinJazz',             # instrumental
-    'MusicDelta_ModalJazz',             # instrumental
+    'MusicDelta_LatinJazz',                       # instrumental
+    'MusicDelta_ModalJazz',                       # instrumental
     'MusicDelta_Punk',
     'MusicDelta_Reggae',
     'MusicDelta_Rock',
     'MusicDelta_Rockabilly',
-    'MusicDelta_Shadows',               # instrumental
-    'MusicDelta_SpeedMetal',            # instrumental
-    'MusicDelta_SwingJazz',             # instrumental
-    'MusicDelta_Zeppelin',              # instrumental
-    'PurlingHiss_Lolita',               # !!
-    'TheScarletBrand_LesFleursDuMal',   # terrible GT mix
+    'MusicDelta_Shadows',                         # instrumental
+    'MusicDelta_SpeedMetal',                      # instrumental
+    'MusicDelta_SwingJazz',                       # instrumental
+    'MusicDelta_Zeppelin',                        # instrumental
+    'PurlingHiss_Lolita',                         # CASE STUDY TRACK
+    'TheScarletBrand_LesFleursDuMal'              # terrible GT mix
 ]
 
 # Tracks from MedleyDB that are not in MUSDB18

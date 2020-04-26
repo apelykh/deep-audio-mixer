@@ -5,6 +5,14 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def interpolate_mask(spec_mask: np.array, tgt_len: int) -> np.array:
+    """
+    Interpolate mask to a target length.
+    Used for stretching shorter spectral-level masks to sample-level size.
+
+    :param spec_mask: a mask that will be interpolated;
+    :param tgt_len: target length of the mask;
+    :return: stretched mask of the target length;
+    """
     assert len(spec_mask) <= tgt_len, "Target mask should be longer than the initial one"
 
     sample_mask = np.zeros(tgt_len)
@@ -31,7 +39,23 @@ def interpolate_mask(spec_mask: np.array, tgt_len: int) -> np.array:
 def mix_song(dataset, model, loaded_tracks: dict, chunk_length=1, sr=44100) -> np.array:
     """
     Sequentially apply the model to all the song chunks to produce the full mixed song.
+
+    :param dataset: an instance of a MultitrackAudioDataset class;
+    :param model: an instance of MixingModelScalar or MixingModelVector classes;
+    :param loaded_tracks: a dict with audio tracks:
+    {
+        'bass': np.array,
+        'drums': np.array,
+        'other': np.array,
+        'vocals': np.array,
+        'mix': np.array - optional
+    }
+    :param chunk_length: length (in seconds) of the audio chunk to compute features for;
+        Should correspond to the value used for training;
+    :param sr: sampling rate of the audio tracks;
+    :return: full mixed song;
     """
+    # any track can be used as a reference, they all have the same length
     mixed_song = np.zeros(len(loaded_tracks['drums']))
     chunk_samples = chunk_length * sr
     num_chunks = int(len(loaded_tracks['drums']) / chunk_samples)
@@ -64,7 +88,6 @@ def mix_song(dataset, model, loaded_tracks: dict, chunk_length=1, sr=44100) -> n
                 else:
                     sample_mask = spec_mask
                 mixed_chunk += loaded_tracks[track][i_from:i_to] * sample_mask
-
         mixed_song[i_from:i_to] = mixed_chunk
 
     return mixed_song

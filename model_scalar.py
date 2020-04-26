@@ -36,12 +36,12 @@ class MixingModelScalar(nn.Module):
         self.conv_head4 = nn.Conv2d(48, 1, kernel_size=(1, 1))
         self.fc_head4 = nn.Linear(1476, 1)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> tuple:
         """
-
-        :param x:
-        :return: sum of masked track spectrograms +
-        mask for each track to apply them to audio during test time
+        :param x: input features;
+        :return:
+        - weighted sum (by gain coefficients) of input spectrograms;
+        - gain coefficients for each stem;
         """
         # [:, 4, 1025, 44]
         res = F.relu(self.conv1_1(x))
@@ -71,12 +71,10 @@ class MixingModelScalar(nn.Module):
         m4 = F.relu(self.conv_head4(res))
         m4 = self.fc_head4(m4.view((x.size()[0], -1)))
 
-        ones = torch.ones_like(m1)
-
         masked = torch.zeros_like(x[:, 0])
-        masked += (ones + m1).unsqueeze(2) * x[:, 0]
-        masked += (ones + m2).unsqueeze(2) * x[:, 1]
-        masked += (ones + m3).unsqueeze(2) * x[:, 2]
-        masked += (ones + m4).unsqueeze(2) * x[:, 3]
+        masked += m1.unsqueeze(2) * x[:, 0]
+        masked += m2.unsqueeze(2) * x[:, 1]
+        masked += m3.unsqueeze(2) * x[:, 2]
+        masked += m4.unsqueeze(2) * x[:, 3]
 
         return masked, (m1, m2, m3, m4)
