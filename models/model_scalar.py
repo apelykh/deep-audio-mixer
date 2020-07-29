@@ -25,16 +25,16 @@ class MixingModelScalar(nn.Module):
 
         # each head produces a gain coefficient for a dedicated track
         self.conv_head1 = nn.Conv2d(48, 1, kernel_size=(1, 1))
-        self.fc_head1 = nn.Linear(1476, 1)
+        self.fc_head1 = nn.Linear(4059, 1)
 
         self.conv_head2 = nn.Conv2d(48, 1, kernel_size=(1, 1))
-        self.fc_head2 = nn.Linear(1476, 1)
+        self.fc_head2 = nn.Linear(4059, 1)
 
         self.conv_head3 = nn.Conv2d(48, 1, kernel_size=(1, 1))
-        self.fc_head3 = nn.Linear(1476, 1)
+        self.fc_head3 = nn.Linear(4059, 1)
 
         self.conv_head4 = nn.Conv2d(48, 1, kernel_size=(1, 1))
-        self.fc_head4 = nn.Linear(1476, 1)
+        self.fc_head4 = nn.Linear(4059, 1)
 
     def forward(self, x: torch.Tensor) -> tuple:
         """
@@ -60,6 +60,7 @@ class MixingModelScalar(nn.Module):
         res = self.bn3(res)
 
         m1 = F.relu(self.conv_head1(res))
+        # print(m1.shape)
         m1 = self.fc_head1(m1.view((x.size()[0], -1)))
 
         m2 = F.relu(self.conv_head2(res))

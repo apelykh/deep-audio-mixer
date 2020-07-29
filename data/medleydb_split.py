@@ -57,45 +57,51 @@ exclude_songlist = [
     'Wolf_DieBekherte'                            # classics
 ]
 
+# train_songlist = [
+#     'AClassicEducation_NightOwl',
+#     'AimeeNorwich_Child',
+#     'AimeeNorwich_Flying',
+#     'AlexanderRoss_GoodbyeBolero',
+#     'AlexanderRoss_VelvetCurtain',
+#     'Auctioneer_OurFutureFaces',
+#     'AvaLuna_Waterduct',
+#     'BigTroubles_Phantom',
+#     'CelestialShore_DieForUs',
+#     'ChrisJacoby_PigsFoot',                       # instrumental
+#     'ClaraBerryAndWooldog_AirTraffic',
+#     'ClaraBerryAndWooldog_Boys',
+#     'ClaraBerryAndWooldog_Stella',
+#     'ClaraBerryAndWooldog_WaltzForMyVictims',
+#     'Creepoid_OldTree',
+#     'CroqueMadame_Oil',                           # instrumental
+#     'CroqueMadame_Pilot',                         # instrumental
+#     'DreamersOfTheGhetto_HeavyLove',
+#     'FacesOnFilm_WaitingForGa',
+#     'FamilyBand_Again',
+#     'Grants_PunchDrunk',                          # rap
+#     'HeladoNegro_MitadDelMundo',
+#     'HezekiahJones_BorrowedHeart',
+#     'HopAlong_SisterCities',
+#     'InvisibleFamiliars_DisturbingWildlife',
+#     'KarimDouaidy_Hopscotch',                     # instrumental
+#     'KarimDouaidy_Yatora',                        # instrumental
+#     'Lushlife_ToynbeeSuite',
+#     'MatthewEntwistle_DontYouEver',
+#     'NightPanther_Fire',
+#     'PortStWillow_StayEven',
+#     'SecretMountains_HighHorse',
+#     'Snowmine_Curfews',
+#     'StevenClark_Bounty',
+#     'StrandOfOaks_Spacestation',
+#     'SweetLights_YouLetMeDown',
+#     'TheDistricts_Vermont',
+#     'TheSoSoGlos_Emergency'
+# ]
+
 train_songlist = [
-    'AClassicEducation_NightOwl',
-    'AimeeNorwich_Child',
-    'AimeeNorwich_Flying',
-    'AlexanderRoss_GoodbyeBolero',
-    'AlexanderRoss_VelvetCurtain',
-    'Auctioneer_OurFutureFaces',
-    'AvaLuna_Waterduct',
-    'BigTroubles_Phantom',
-    'CelestialShore_DieForUs',
-    'ChrisJacoby_PigsFoot',                       # instrumental
-    'ClaraBerryAndWooldog_AirTraffic',
-    'ClaraBerryAndWooldog_Boys',
-    'ClaraBerryAndWooldog_Stella',
-    'ClaraBerryAndWooldog_WaltzForMyVictims',
     'Creepoid_OldTree',
-    'CroqueMadame_Oil',                           # instrumental
-    'CroqueMadame_Pilot',                         # instrumental
-    'DreamersOfTheGhetto_HeavyLove',
-    'FacesOnFilm_WaitingForGa',
-    'FamilyBand_Again',
-    'Grants_PunchDrunk',                          # rap
-    'HeladoNegro_MitadDelMundo',
-    'HezekiahJones_BorrowedHeart',
-    'HopAlong_SisterCities',
-    'InvisibleFamiliars_DisturbingWildlife',
-    'KarimDouaidy_Hopscotch',                     # instrumental
-    'KarimDouaidy_Yatora',                        # instrumental
-    'Lushlife_ToynbeeSuite',
-    'MatthewEntwistle_DontYouEver',
-    'NightPanther_Fire',
     'PortStWillow_StayEven',
-    'SecretMountains_HighHorse',
-    'Snowmine_Curfews',
-    'StevenClark_Bounty',
-    'StrandOfOaks_Spacestation',
-    'SweetLights_YouLetMeDown',
-    'TheDistricts_Vermont',
-    'TheSoSoGlos_Emergency'
+    'TheDistricts_Vermont'
 ]
 
 # not suitable for training but too good to be excluded
@@ -129,6 +135,35 @@ test_songlist = [
     'MusicDelta_Zeppelin',                        # instrumental
     'PurlingHiss_Lolita',                         # CASE STUDY TRACK
     'TheScarletBrand_LesFleursDuMal'              # terrible GT mix
+]
+
+
+weathervane_music = [
+    'AClassicEducation_NightOwl',
+    'Auctioneer_OurFutureFaces',
+    'AvaLuna_Waterduct',
+    'BigTroubles_Phantom',
+    'CelestialShore_DieForUs',
+    'Lushlife_ToynbeeSuite',
+    'NightPanther_Fire',
+    'PortStWillow_StayEven',
+    'PurlingHiss_Lolita',
+    'SecretMountains_HighHorse',
+    'Snowmine_Curfews',
+    'TheSoSoGlos_Emergency',
+    'Creepoid_OldTree',
+    'DreamersOfTheGhetto_HeavyLove',
+    'FacesOnFilm_WaitingForGa',
+    'FamilyBand_Again',
+    'Grants_PunchDrunk',
+    'HeladoNegro_MitadDelMundo',
+    'HezekiahJones_BorrowedHeart',
+    'HopAlong_SisterCities',
+    'InvisibleFamiliars_DisturbingWildlife',
+    'StevenClark_Bounty',
+    'StrandOfOaks_Spacestation',
+    'SweetLights_YouLetMeDown',
+    'TheDistricts_Vermont'
 ]
 
 # Tracks from MedleyDB that are not in MUSDB18
