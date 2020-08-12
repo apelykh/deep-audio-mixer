@@ -1,5 +1,4 @@
 import os
-import math
 import numpy as np
 import librosa
 import librosa.display
@@ -114,9 +113,9 @@ def _dB_to_amplitude(x):
 
 def mix_song_smooth(dataset, model, loaded_tracks: dict, chunk_length=1, sr=44100) -> np.array:
     # any track can be used as a reference, they all have the same length
-    mixed_song = np.zeros(len(loaded_tracks['drums']))
+    mixed_song = np.zeros_like(loaded_tracks['drums'])
     chunk_samples = chunk_length * sr
-    num_chunks = int(len(loaded_tracks['drums']) / chunk_samples)
+    num_chunks = int(len(loaded_tracks['drums'][0]) / chunk_samples)
 
     gain_history = {track: [] for track in ['bass', 'drums', 'vocals', 'other']}
 
@@ -127,7 +126,7 @@ def mix_song_smooth(dataset, model, loaded_tracks: dict, chunk_length=1, sr=4410
         features = []
         for track in dataset.get_tracklist():
             if track != 'mix':
-                feature = dataset.compute_features(loaded_tracks[track][i_from:i_to])
+                feature = dataset.compute_features(loaded_tracks[track][:, i_from:i_to])
                 features.append(feature)
 
         feature_stack = np.stack(features)
@@ -144,10 +143,10 @@ def mix_song_smooth(dataset, model, loaded_tracks: dict, chunk_length=1, sr=4410
     # TODO: if works, remove interpolation and rewrite the pipeline in a separate abstraction
     for track in gain_history:
         smoothed_gains = savgol_filter(gain_history[track], 51, 2)
-        mask = interpolate_mask(smoothed_gains, len(loaded_tracks[track]))
+        mask = interpolate_mask(smoothed_gains, len(loaded_tracks[track][0]))
         mixed_song += loaded_tracks[track] * mask
 
-    mixed_song = librosa.util.normalize(mixed_song)
+    mixed_song = librosa.util.normalize(mixed_song, axis=1)
 
     return mixed_song, gain_history
 
@@ -215,7 +214,8 @@ def mix_dataset_istft(dataset, model) -> np.array:
     return np.concatenate(mixed_song, axis=None)
 
 
-def load_tracks(base_dir, song_name, tracklist=('bass', 'drums', 'vocals', 'other', 'mix'),
+def load_tracks(base_dir, song_name,
+                tracklist=('bass', 'drums', 'vocals', 'other', 'mix'),
                 sr=44100) -> dict:
     loaded_tracks = {}
 
@@ -225,51 +225,21 @@ def load_tracks(base_dir, song_name, tracklist=('bass', 'drums', 'vocals', 'othe
         else:
             track_path = os.path.join(base_dir, song_name, '{}_STEMS_JOINED'.format(song_name),
                                       '{}_STEM_{}.wav'.format(song_name, track.upper()))
-        audio, _ = librosa.load(track_path, sr=sr)
-        # loaded_tracks[track] = librosa.util.normalize(audio)
+        audio, _ = librosa.load(track_path, sr=sr, mono=False)
         loaded_tracks[track] = audio
 
     return loaded_tracks
 
 
-def load_tracks_musdb18(base_dir, song_name, tracklist=('bass', 'drums', 'vocals', 'other', 'mix'),
-                sr=44100) -> dict:
+def load_tracks_musdb18(base_dir, song_name,
+                        tracklist=('bass', 'drums', 'vocals', 'other', 'mix'),
+                        sr=44100) -> dict:
     loaded_tracks = {}
 
     for track in tracklist:
         track_name = 'mixture' if track == 'mix' else track
         track_path = os.path.join(base_dir, song_name, '{}.wav'.format(track_name))
-        audio, _ = librosa.load(track_path, sr=sr)
-        loaded_tracks[track] = librosa.util.normalize(audio)
+        audio, _ = librosa.load(track_path, sr=sr, mono=False)
+        loaded_tracks[track] = audio
 
     return loaded_tracks
-
-
-if __name__ == '__main__':
-    d = MultitrackAudioDataset(
-        '/media/apelykh/bottomless-pit/datasets/mixing/MedleyDB/Audio',
-        # '/home/apelykh/datasets',
-        songlist=['Creepoid_OldTree'],
-        # songlist=['PurlingHiss_Lolita'],
-        chunk_length=1,
-        train_val_test_split=(0.0, 0.0, 1.0),
-        mode='test',
-        seed=321,
-        normalize=False
-    )
-    # print('Test: {} tracks, {} chunks'.format(d.get_num_songs(), len(d)))
-
-    base_dir = '/media/apelykh/bottomless-pit/datasets/mixing/MedleyDB/Audio/'
-    song_name = 'TheScarletBrand_LesFleursDuMal'
-    loaded_tracks = load_tracks(base_dir, song_name)
-
-    # model = MixingModelTDD().to(device)
-    model = ModelDummy().to(device)
-    # model = ModelUNet(n_channels=4, n_classes=4, bilinear=False).to(device)
-
-    num_trainable_param = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    print('{} trainable parameters'.format(num_trainable_param))
-
-    mixed_song = mix_song_istft(d, model, loaded_tracks)
-
-    librosa.output.write_wav('results/test.wav', mixed_song, 44100)

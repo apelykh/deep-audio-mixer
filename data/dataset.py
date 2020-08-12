@@ -167,6 +167,10 @@ class MultitrackAudioDataset(data.Dataset):
         """
         Compute STFT features for an input audio.
         """
+        # if stereo, convert to mono
+        if len(audio.shape) == 2 and audio.shape[0] == 2:
+            audio = librosa.to_mono(audio)
+
         spectrum = librosa.stft(audio,
                                 n_fft=window_size,
                                 hop_length=hop_length,
