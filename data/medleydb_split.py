@@ -166,6 +166,20 @@ weathervane_music = [
     'TheDistricts_Vermont'
 ]
 
+musdb18_mixed = [
+    'Actions - Devils Words',
+    'Actions - One Minute Smile',
+    'Actions - South Of The Water',
+    'Angela Thomas Wade - Milk Cow Blues',
+    'ANiMAL - Clinic A',
+    'ANiMAL - Easy Tiger',
+    'ANiMAL - Rockshow',
+    'Atlantis Bound - It Was My Fault For Waiting',
+    'Bill Chudziak - Children Of No-one',
+    'Black Bloc - If You Want Success'
+]
+
+
 # Tracks from MedleyDB that are not in MUSDB18
 not_in_musdb18 = [
     'AimeeNorwich_Flying',

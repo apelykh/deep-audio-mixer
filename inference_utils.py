@@ -1,4 +1,5 @@
 import os
+import math
 import numpy as np
 import librosa
 import librosa.display
@@ -104,6 +105,13 @@ def mix_song(dataset, model, loaded_tracks: dict, chunk_length=1, sr=44100) -> n
     return mixed_song, mask_history
 
 
+def _dB_to_amplitude(x):
+    """
+    db_to_amplitude(S_db) ~= 10.0**(0.5 * S_db)
+    """
+    return np.power(10.0, 0.5 * x)
+
+
 def mix_song_smooth(dataset, model, loaded_tracks: dict, chunk_length=1, sr=44100) -> np.array:
     # any track can be used as a reference, they all have the same length
     mixed_song = np.zeros(len(loaded_tracks['drums']))
@@ -119,7 +127,7 @@ def mix_song_smooth(dataset, model, loaded_tracks: dict, chunk_length=1, sr=4410
         features = []
         for track in dataset.get_tracklist():
             if track != 'mix':
-                feature, _ = dataset.compute_features(loaded_tracks[track][i_from:i_to])
+                feature = dataset.compute_features(loaded_tracks[track][i_from:i_to])
                 features.append(feature)
 
         feature_stack = np.stack(features)
@@ -129,7 +137,8 @@ def mix_song_smooth(dataset, model, loaded_tracks: dict, chunk_length=1, sr=4410
         for i, track in enumerate(dataset.get_tracklist()):
             if track != 'mix':
                 # extra batch dimension -> squeeze
-                gain = np.squeeze(gains[i].to('cpu').detach().numpy())
+                gain = np.abs(np.squeeze(gains[i].to('cpu').detach().numpy()))
+                gain = _dB_to_amplitude(gain)
                 gain_history[track].append(float(gain))
 
     # TODO: if works, remove interpolation and rewrite the pipeline in a separate abstraction
@@ -216,6 +225,20 @@ def load_tracks(base_dir, song_name, tracklist=('bass', 'drums', 'vocals', 'othe
         else:
             track_path = os.path.join(base_dir, song_name, '{}_STEMS_JOINED'.format(song_name),
                                       '{}_STEM_{}.wav'.format(song_name, track.upper()))
+        audio, _ = librosa.load(track_path, sr=sr)
+        # loaded_tracks[track] = librosa.util.normalize(audio)
+        loaded_tracks[track] = audio
+
+    return loaded_tracks
+
+
+def load_tracks_musdb18(base_dir, song_name, tracklist=('bass', 'drums', 'vocals', 'other', 'mix'),
+                sr=44100) -> dict:
+    loaded_tracks = {}
+
+    for track in tracklist:
+        track_name = 'mixture' if track == 'mix' else track
+        track_path = os.path.join(base_dir, song_name, '{}.wav'.format(track_name))
         audio, _ = librosa.load(track_path, sr=sr)
         loaded_tracks[track] = librosa.util.normalize(audio)
 

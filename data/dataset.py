@@ -4,10 +4,11 @@ import numpy as np
 import librosa
 import torch
 from torch.utils import data
+from sklearn.preprocessing import scale
 
 
-def no_phase_collate_fn(batch):
-    target_keys = ['gt_features', 'train_features', 'sum_features']
+def simple_collate_fn(batch):
+    target_keys = ['gt_features', 'train_features']
     batch_dict = {}
 
     for elem in batch:
@@ -22,8 +23,8 @@ def no_phase_collate_fn(batch):
 class MultitrackAudioDataset(data.Dataset):
     def __init__(self, base_path: str, songlist: list = None, chunk_length: int = 1,
                  sr: int = 44100, train_val_test_split: tuple = (1.0, 0.0, 0.0),
-                 mode: str = 'train', seed: int = None, normalize: bool = True,
-                 compute_features: bool = False):
+                 mode: str = 'train', seed: int = None, normalize: bool = False,
+                 compute_features: bool = False, augment_data: bool = True):
         """
         Dataset with song caching for quicker load. A song stays in cache until the
         features were not computed for all its chunks.
@@ -47,11 +48,16 @@ class MultitrackAudioDataset(data.Dataset):
         self._chunk_length = chunk_length
         self._normalize = normalize
         self._compute_features = compute_features
+        self._augment = augment_data
         self._sr = sr
         self._tracklist = ['bass', 'drums', 'vocals', 'other', 'mix']
         self._track_mask = None
         self._loaded_track_i = None
         self._loaded_track = {}
+
+        # stubs for torchsample fit_loader()
+        self.num_inputs = 1
+        self.num_targets = 1
 
         if songlist:
             self.songlist = songlist
@@ -156,40 +162,29 @@ class MultitrackAudioDataset(data.Dataset):
 
         return song_i, chunk_i
 
-    @staticmethod
-    def compute_features(audio: np.ndarray, window_size: int = 2048, hop_length: int = 512) -> tuple:
+    def compute_features(self, audio: np.ndarray, window_size: int = 2048,
+                         hop_length: int = 512) -> np.ndarray:
         """
         Compute STFT features for an input audio.
-
-        :param audio: input audio;
-        :param window_size:
-        :param hop_length:
-        :return:
         """
         spectrum = librosa.stft(audio,
                                 n_fft=window_size,
                                 hop_length=hop_length,
                                 window=np.hanning(window_size))
         magnitudes = np.abs(spectrum)
-        # phases = spectrum / magnitudes
-        phases = None
-
         features = librosa.amplitude_to_db(magnitudes)
+        # features = magnitudes
 
-        # if self._normalize:
-        #     features = librosa.util.normalize(features)
+        if self._normalize:
+            features = librosa.util.normalize(features)
 
-        return features, phases
+        return features
 
-    def _process_on_the_fly(self, song_i):
+    def _process_on_the_fly(self, song_i) -> tuple:
         """
         The song is cached until all of its chunks are used. On each iteration the chunk
         is chosen randomly among the free ones.
         """
-        result = {
-            'song_name': self.songlist[song_i],
-            'song_index': song_i
-        }
 
         if not self._loaded_track or self._loaded_track_i != song_i:
             self._unload_tracks()
@@ -200,26 +195,29 @@ class MultitrackAudioDataset(data.Dataset):
         random.seed(None)
         # index of a chunk in a current song
         chunk_i = np.random.choice(free_chunks)
-        result['chunk_index'] = chunk_i
 
-        # sample indices
         i_from = chunk_i * self._chunk_length * self._sr
         i_to = (chunk_i + 1) * self._chunk_length * self._sr
         sum_chunk = np.zeros(i_to - i_from)
         per_track_features = []
+        gt_features = None
 
         for track in self._tracklist:
             audio_chunk = self._loaded_track[track][i_from:i_to]
-            features, _ = self.compute_features(audio_chunk)
+
+            if self._augment:
+                random_gain = np.random.uniform(0.75, 1.25)
+                audio_chunk = random_gain * audio_chunk
+
+            features = self.compute_features(audio_chunk)
 
             if track == 'mix':
-                result['gt_features'] = features
+                gt_features = features
             else:
                 sum_chunk += audio_chunk
                 per_track_features.append(features)
 
-        result['train_features'] = np.stack(per_track_features)
-        # result['sum_features'], result['sum_phases'] = self.compute_features(sum_chunk)
+        train_features = np.stack(per_track_features)
 
         # indicate that the current song chunk was used
         self._track_mask[chunk_i] = 0
@@ -228,7 +226,7 @@ class MultitrackAudioDataset(data.Dataset):
         if np.sum(self._track_mask) == 0:
             self._unload_tracks()
 
-        return result
+        return train_features, gt_features
 
     def _precompute_features(self):
         """
@@ -237,6 +235,7 @@ class MultitrackAudioDataset(data.Dataset):
         print('[.] Pre-computing features...')
 
         for song_i, song_name in enumerate(self.songlist):
+            print('-' * 60)
             print('{}/{}: {}'.format(song_i, len(self.songlist), song_name))
             self._load_tracks(song_i)
 
@@ -254,39 +253,38 @@ class MultitrackAudioDataset(data.Dataset):
                 i_from = chunk_i * self._chunk_length * self._sr
                 i_to = (chunk_i + 1) * self._chunk_length * self._sr
                 per_track_features = []
+                suffix = '_norm' if self._normalize else ''
 
                 for track in self._tracklist:
                     audio_chunk = self._loaded_track[track][i_from:i_to]
-                    features, _ = self.compute_features(audio_chunk)
+                    features = self.compute_features(audio_chunk)
 
                     if track == 'mix':
-                        np.save(os.path.join(features_dir, '{}_gt.npy'.format(chunk_i)), features)
+                        np.save(os.path.join(features_dir, '{}_gt{}.npy'.format(chunk_i, suffix)), features)
                     else:
                         per_track_features.append(features)
 
-                np.save(os.path.join(features_dir, '{}_train.npy'.format(chunk_i)),
+                np.save(os.path.join(features_dir, '{}_train{}.npy'.format(chunk_i, suffix)),
                         np.stack(per_track_features))
         print('[+] Features computed and saved')
 
-    def _process_precomputed(self, song_i, chunk_i) -> dict:
+    def _process_precomputed(self, song_i, chunk_i) -> tuple:
         """
         Read pre-computed features from drive.
         """
         song_name = self.songlist[song_i]
-        result = {
-            'song_name': song_name,
-            'song_index': song_i,
-            'chunk_index': chunk_i
-        }
 
         song_dir = os.path.join(self._base_path, song_name)
         features_dir = os.path.join(song_dir, '{}_FEATURES'.format(song_name))
-        result['train_features'] = np.load(os.path.join(features_dir, '{}_train.npy'.format(chunk_i)))
-        result['gt_features'] = np.load(os.path.join(features_dir, '{}_gt.npy'.format(chunk_i)))
 
-        return result
+        suffix = '_norm' if self._normalize else ''
+        train_features = np.load(os.path.join(features_dir, '{}_train{}.npy'.format(chunk_i, suffix)))
+        # print(train_features.shape)
+        gt_features = np.load(os.path.join(features_dir, '{}_gt{}.npy'.format(chunk_i, suffix)))
 
-    def __getitem__(self, index: int) -> dict:
+        return train_features, gt_features
+
+    def __getitem__(self, index: int) -> tuple:
         """
         :param index: global index of a song chunk to compute features for, in range [0, len(dataset)];
         :return: {
@@ -300,14 +298,12 @@ class MultitrackAudioDataset(data.Dataset):
         }
         """
         song_i, chunk_i = self._calculate_song_index(index)
-        # print('Song {}, chunk {}'.format(song_i, chunk_i))
+        # print('Song {}, chunk {}'.format(self.songlist[song_i], chunk_i))
 
         if self._compute_features:
-            result = self._process_on_the_fly(song_i)
+            return self._process_on_the_fly(song_i)
         else:
-            result = self._process_precomputed(song_i, chunk_i)
-
-        return result
+            return self._process_precomputed(song_i, chunk_i)
 
     def __len__(self) -> int:
         return self._len
