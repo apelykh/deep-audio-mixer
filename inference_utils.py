@@ -1,12 +1,9 @@
-import os
 import numpy as np
 import librosa
 import librosa.display
 import torch
-
 from scipy.signal import savgol_filter
-from data.dataset import MultitrackAudioDataset
-from models.model_dummy import ModelDummy
+from data.dataset_utils import scalar_dB_to_amplitude
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -104,20 +101,11 @@ def mix_song(dataset, model, loaded_tracks: dict, chunk_length=1, sr=44100) -> n
     return mixed_song, mask_history
 
 
-def _dB_to_amplitude(x):
-    """
-    db_to_amplitude(S_db) ~= 10.0**(0.5 * S_db)
-    """
-    return np.power(10.0, 0.5 * x)
-
-
 def mix_song_smooth(dataset, model, loaded_tracks: dict, chunk_length=1, sr=44100) -> np.array:
-    # any track can be used as a reference, they all have the same length
-    mixed_song = np.zeros_like(loaded_tracks['drums'])
     chunk_samples = chunk_length * sr
     num_chunks = int(len(loaded_tracks['drums'][0]) / chunk_samples)
 
-    gain_history = {track: [] for track in ['bass', 'drums', 'vocals', 'other']}
+    raw_gains = {track: [] for track in ['bass', 'drums', 'vocals', 'other']}
 
     for chunk_i in range(1, num_chunks):
         i_from = (chunk_i - 1) * chunk_samples
@@ -136,19 +124,31 @@ def mix_song_smooth(dataset, model, loaded_tracks: dict, chunk_length=1, sr=4410
         for i, track in enumerate(dataset.get_tracklist()):
             if track != 'mix':
                 # extra batch dimension -> squeeze
-                gain = np.abs(np.squeeze(gains[i].to('cpu').detach().numpy()))
-                gain = _dB_to_amplitude(gain)
-                gain_history[track].append(float(gain))
+                gain = np.squeeze(gains[i].to('cpu').detach().numpy())
+                gain = scalar_dB_to_amplitude(gain)
+                raw_gains[track].append(float(gain))
+
+    # any track can be used as a reference, they all have the same length
+    # mixed_song = np.zeros_like(loaded_tracks['drums'])
+    smooth_gains = {track: [] for track in ['bass', 'drums', 'vocals', 'other']}
+    mixed_tracks = {}
 
     # TODO: if works, remove interpolation and rewrite the pipeline in a separate abstraction
-    for track in gain_history:
-        smoothed_gains = savgol_filter(gain_history[track], 51, 2)
+    for track in raw_gains:
+        smoothed_gains = savgol_filter(raw_gains[track], 51, 2)
+        smooth_gains[track].extend(smoothed_gains)
         mask = interpolate_mask(smoothed_gains, len(loaded_tracks[track][0]))
-        mixed_song += loaded_tracks[track] * mask
+        # mixed_song += loaded_tracks[track] * mask
+        mixed_tracks[track] = loaded_tracks[track] * mask
 
-    mixed_song = librosa.util.normalize(mixed_song, axis=1)
+    assert len(raw_gains['bass']) == len(smooth_gains['bass'])
 
-    return mixed_song, gain_history
+    mixed_song = np.array(list(mixed_tracks.values()))
+    mixed_tracks['mix'] = np.sum(mixed_song, axis=0)
+
+    # mixed_song = librosa.util.normalize(mixed_song, axis=1)
+
+    return mixed_tracks, raw_gains, smooth_gains
 
 
 def mix_song_istft(dataset, model, loaded_tracks: dict, chunk_length=1, sr=44100) -> np.array:
@@ -212,34 +212,3 @@ def mix_dataset_istft(dataset, model) -> np.array:
         mixed_song.append(mixed_chunk)
 
     return np.concatenate(mixed_song, axis=None)
-
-
-def load_tracks(base_dir, song_name,
-                tracklist=('bass', 'drums', 'vocals', 'other', 'mix'),
-                sr=44100) -> dict:
-    loaded_tracks = {}
-
-    for track in tracklist:
-        if track == 'mix':
-            track_path = os.path.join(base_dir, song_name, '{}_MIX.wav'.format(song_name))
-        else:
-            track_path = os.path.join(base_dir, song_name, '{}_STEMS_JOINED'.format(song_name),
-                                      '{}_STEM_{}.wav'.format(song_name, track.upper()))
-        audio, _ = librosa.load(track_path, sr=sr, mono=False)
-        loaded_tracks[track] = audio
-
-    return loaded_tracks
-
-
-def load_tracks_musdb18(base_dir, song_name,
-                        tracklist=('bass', 'drums', 'vocals', 'other', 'mix'),
-                        sr=44100) -> dict:
-    loaded_tracks = {}
-
-    for track in tracklist:
-        track_name = 'mixture' if track == 'mix' else track
-        track_path = os.path.join(base_dir, song_name, '{}.wav'.format(track_name))
-        audio, _ = librosa.load(track_path, sr=sr, mono=False)
-        loaded_tracks[track] = audio
-
-    return loaded_tracks

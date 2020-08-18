@@ -98,12 +98,6 @@ exclude_songlist = [
 #     'TheSoSoGlos_Emergency'
 # ]
 
-train_songlist = [
-    'Creepoid_OldTree',
-    'PortStWillow_StayEven',
-    'TheDistricts_Vermont'
-]
-
 # not suitable for training but too good to be excluded
 test_songlist = [
     'ChrisJacoby_BoothShotLincoln',               # instrumental

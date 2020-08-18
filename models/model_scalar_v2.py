@@ -115,13 +115,19 @@ class MixingModelScalar2d(nn.Module):
         masked = torch.zeros_like(x[:, 0])
 
         # base_mask = torch.tensor(0)
-        masked += dB_to_amplitude(m1.unsqueeze(2) + x[:, 0])
-        masked += dB_to_amplitude(m2.unsqueeze(2) + x[:, 1])
-        masked += dB_to_amplitude(m3.unsqueeze(2) + x[:, 2])
-        # masked += base_mask + x[:, 3]
-        masked += dB_to_amplitude(m4.unsqueeze(2) + x[:, 3])
+        # masked += m1.unsqueeze(2) * dB_to_amplitude(x[:, 0])
+        # masked += m2.unsqueeze(2) * dB_to_amplitude(x[:, 1])
+        # masked += m3.unsqueeze(2) * dB_to_amplitude(x[:, 2])
+        # # masked += base_mask + x[:, 3]
+        # masked += m4.unsqueeze(2) * dB_to_amplitude(x[:, 3])
 
-        return amplitude_to_dB(masked), (m1, m2, m3, m4)
+        masked += m1.unsqueeze(2) * x[:, 0]
+        masked += m2.unsqueeze(2) * x[:, 1]
+        masked += m3.unsqueeze(2) * x[:, 2]
+        # masked += base_mask + x[:, 3]
+        masked += m4.unsqueeze(2) * x[:, 3]
+
+        return masked, (m1, m2, m3, m4)
 
 
 if __name__ == '__main__':
@@ -132,8 +138,6 @@ if __name__ == '__main__':
         '/media/apelykh/bottomless-pit/datasets/mixing/MedleyDB/Audio',
         songlist=weathervane_music,
         chunk_length=1,
-        train_val_test_split=(0.8, 0.2, 0.0),
-        mode='train',
         seed=321,
         normalize=False
     )
