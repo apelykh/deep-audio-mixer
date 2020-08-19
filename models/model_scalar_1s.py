@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
 from torch.utils.data import DataLoader
 from data.dataset import MultitrackAudioDataset
 from data.medleydb_split import weathervane_music
@@ -62,7 +61,7 @@ def amplitude_to_dB(x: torch.Tensor):
     return 20 * torch.log10(x)
 
 
-class MixingModelScalar2d(nn.Module):
+class MixingModelScalar1s(nn.Module):
     def __init__(self):
         super().__init__()
 
@@ -150,7 +149,7 @@ if __name__ == '__main__':
                               drop_last=False,
                               timeout=0)
 
-    model = MixingModelScalar2d().to(device)
+    model = MixingModelScalar1s().to(device)
 
     num_trainable_param = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print('{} trainable parameters'.format(num_trainable_param))

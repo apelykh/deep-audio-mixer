@@ -9,7 +9,7 @@ from statistics import mean
 from collections import OrderedDict
 from inference_utils import mix_song_smooth
 from data.dataset import MultitrackAudioDataset
-from models.model_scalar_v2 import MixingModelScalar2d
+from models.model_scalar_1s import MixingModelScalar1s
 from data.dataset_utils import load_tracks_musdb18
 
 
@@ -134,7 +134,7 @@ if __name__ == '__main__':
         compute_features=False
     )
 
-    model = MixingModelScalar2d().to(device)
+    model = MixingModelScalar1s().to(device)
     weights = './saved_models/training-ignite-unnorm-70-epochs-135.08-val-loss-fter-bugfix/scalar2d_scalar2d_5658.pt'
     model.load_state_dict(torch.load(weights, map_location=device))
 

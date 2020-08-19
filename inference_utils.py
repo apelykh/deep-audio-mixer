@@ -1,6 +1,4 @@
 import numpy as np
-import librosa
-import librosa.display
 import torch
 from scipy.signal import savgol_filter
 from data.dataset_utils import scalar_dB_to_amplitude
@@ -149,66 +147,3 @@ def mix_song_smooth(dataset, model, loaded_tracks: dict, chunk_length=1, sr=4410
     # mixed_song = librosa.util.normalize(mixed_song, axis=1)
 
     return mixed_tracks, raw_gains, smooth_gains
-
-
-def mix_song_istft(dataset, model, loaded_tracks: dict, chunk_length=1, sr=44100) -> np.array:
-    # for now inference is limited to a single song at a time
-    assert dataset.get_num_songs() == 1
-
-    mixed_song = np.zeros(len(loaded_tracks['drums']))
-    chunk_samples = chunk_length * sr
-    num_chunks = int(len(loaded_tracks['drums']) / chunk_samples)
-
-    for chunk_i in range(1, num_chunks):
-        i_from = (chunk_i - 1) * chunk_samples
-        i_to = chunk_i * chunk_samples
-
-        features = []
-        sum_chunk = np.zeros(chunk_samples)
-        for track in dataset.get_tracklist():
-            if track != 'mix':
-                track_chunk = loaded_tracks[track][i_from:i_to]
-                magnitudes, _ = dataset.compute_features(track_chunk)
-                features.append(magnitudes)
-                sum_chunk += track_chunk
-
-        # obtain phases of a summed track to use then in istft
-        _, sum_chunk_phases = dataset.compute_features(sum_chunk)
-
-        # stack spectrograms of all tracks the same way we did during training
-        feature_stack = np.stack(features)
-        # adding a "batch" dimension
-        feature_tensor = torch.from_numpy(feature_stack).unsqueeze(0)
-        masked = model(feature_tensor.to(device))
-        masked = masked.to('cpu').detach().numpy()
-        masked = librosa.db_to_amplitude(masked[0])
-
-        # TODO: parametrize istft from outside the func
-        mixed_chunk = librosa.core.istft(masked * sum_chunk_phases,
-                                         hop_length=512,
-                                         win_length=2048,
-                                         length=chunk_samples)
-        mixed_song[i_from:i_to] = mixed_chunk
-
-    return mixed_song
-
-
-def mix_dataset_istft(dataset, model) -> np.array:
-    # for now inference is limited to a single song at a time
-    assert dataset.get_num_songs() == 1
-
-    mixed_song = []
-    for chunk_i in range(len(dataset)):
-        chunk = dataset[chunk_i]
-        feature_tensor = torch.from_numpy(chunk['train_features']).unsqueeze(0)
-
-        masked = model(feature_tensor.to(device))
-        masked = masked.to('cpu').detach().numpy()
-        masked = librosa.db_to_amplitude(masked[0])
-
-        mixed_chunk = librosa.core.istft(masked * chunk['sum_phases'],
-                                         hop_length=512,
-                                         win_length=2048)
-        mixed_song.append(mixed_chunk)
-
-    return np.concatenate(mixed_song, axis=None)

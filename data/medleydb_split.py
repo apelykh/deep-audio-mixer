@@ -98,39 +98,6 @@ exclude_songlist = [
 #     'TheSoSoGlos_Emergency'
 # ]
 
-# not suitable for training but too good to be excluded
-test_songlist = [
-    'ChrisJacoby_BoothShotLincoln',               # instrumental
-    'Meaxic_TakeAStep',
-    'Meaxic_YouListen',
-    'MusicDelta_80sRock',
-    'MusicDelta_Beatles',
-    'MusicDelta_BebopJazz',
-    'MusicDelta_Britpop',
-    'MusicDelta_CoolJazz',                        # instrumental
-    'MusicDelta_Country1',
-    'MusicDelta_Country2',
-    'MusicDelta_Disco',
-    'MusicDelta_FreeJazz',                        # instrumental
-    'MusicDelta_FunkJazz',                        # instrumental
-    'MusicDelta_FusionJazz',                      # instrumental
-    'MusicDelta_Gospel',
-    'MusicDelta_Grunge',
-    'MusicDelta_Hendrix',
-    'MusicDelta_LatinJazz',                       # instrumental
-    'MusicDelta_ModalJazz',                       # instrumental
-    'MusicDelta_Punk',
-    'MusicDelta_Reggae',
-    'MusicDelta_Rock',
-    'MusicDelta_Rockabilly',
-    'MusicDelta_Shadows',                         # instrumental
-    'MusicDelta_SpeedMetal',                      # instrumental
-    'MusicDelta_SwingJazz',                       # instrumental
-    'MusicDelta_Zeppelin',                        # instrumental
-    'PurlingHiss_Lolita',                         # CASE STUDY TRACK
-    'TheScarletBrand_LesFleursDuMal'              # terrible GT mix
-]
-
 
 weathervane_music = [
     'AClassicEducation_NightOwl',
@@ -160,17 +127,62 @@ weathervane_music = [
     'TheDistricts_Vermont'
 ]
 
-musdb18_mixed = [
-    'Actions - Devils Words',
-    'Actions - One Minute Smile',
-    'Actions - South Of The Water',
-    'Angela Thomas Wade - Milk Cow Blues',
-    'ANiMAL - Clinic A',
-    'ANiMAL - Easy Tiger',
-    'ANiMAL - Rockshow',
-    'Atlantis Bound - It Was My Fault For Waiting',
-    'Bill Chudziak - Children Of No-one',
-    'Black Bloc - If You Want Success'
+musdb18_not_in_medleydb = [
+    "Actions - Devil's Words",
+    "Actions - One Minute Smile",
+    "Actions - South Of The Water",
+    "Angela Thomas Wade - Milk Cow Blues",
+    "ANiMAL - Clinic A",
+    "ANiMAL - Easy Tiger",
+    "ANiMAL - Rockshow",
+    "Atlantis Bound - It Was My Fault For Waiting",
+    "Bill Chudziak - Children Of No-one",
+    "Black Bloc - If You Want Success",
+    "Chris Durban - Celebrate",
+    "Cnoc An Tursa - Bannockburn",
+    "Dark Ride - Burning Bridges",
+    "Drumtracks - Ghost Bitch",
+    "Fergessen - Back From The Start",
+    "Fergessen - Nos Palpitants",
+    "Fergessen - The Wind",
+    "Flags - 54",
+    "Giselle - Moss",
+    "Grants - PunchDrunk",
+    "Hollow Ground - Left Blind",
+    "James May - All Souls Moon",
+    "James May - Dont Let Go",
+    "James May - If You Say",
+    "James May - On The Line",
+    "Jay Menon - Through My Eyes",
+    "Johnny Lokke - Promises & Lies",
+    "Johnny Lokke - Whisper To A Scream",
+    "Jokers, Jacks & Kings - Sea Of Leaves",
+    "Leaf - Come Around",
+    "Leaf - Summerghost",
+    "Leaf - Wicked",
+    "North To Alaska - All The Same",
+    "Patrick Talbot - A Reason To Leave",
+    "Patrick Talbot - Set Me Free",
+    "Phre The Eon - Everybody's Falling Apart",
+    "Remember December - C U Next Time",
+    "Skelpolu - Human Mistakes",
+    "Skelpolu - Together Alone",
+    "Spike Mullings - Mike's Sulking",
+    "St Vitus - Word Gets Around",
+    "Swinging Steaks - Lost My Way",
+    "The Long Wait - Back Home To Blue",
+    "The Wrong'Uns - Rothko",
+    "Tim Taler - Stalker",
+    "Titanium - Haunted Age",
+    "Traffic Experiment - Once More (With Feeling)",
+    "Traffic Experiment - Sirens",
+    "Triviul - Angelsaint",
+    "Triviul - Dorothy",
+    "Voelund - Comfort Lives In Belief",
+    "Wall Of Death - Femme",
+    "Young Griffo - Blood To Bone",
+    "Young Griffo - Facade",
+    "Young Griffo - Pennies"
 ]
 
 
