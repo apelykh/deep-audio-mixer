@@ -242,7 +242,6 @@ class MultitrackAudioDataset(data.Dataset):
 
             song_dir = os.path.join(self._base_path, song_name)
             features_dir = os.path.join(song_dir, '{}_FEATURES'.format(song_name))
-
             if not os.path.isdir(features_dir):
                 os.makedirs(features_dir)
 
@@ -261,11 +260,12 @@ class MultitrackAudioDataset(data.Dataset):
                     features = self.compute_features(audio_chunk)
 
                     if track == 'mix':
-                        np.save(os.path.join(features_dir, '{}_gt{}.npy'.format(chunk_i, suffix)), features)
+                        np.save(os.path.join(features_dir, '{}_gt_{}s{}.npy'.
+                                             format(chunk_i, self._chunk_length, suffix)), features)
                     else:
                         per_track_features.append(features)
 
-                np.save(os.path.join(features_dir, '{}_train{}.npy'.format(chunk_i, suffix)),
+                np.save(os.path.join(features_dir, '{}_train_{}s{}.npy'.format(chunk_i, self._chunk_length, suffix)),
                         np.stack(per_track_features))
         print('[+] Features computed and saved')
 
