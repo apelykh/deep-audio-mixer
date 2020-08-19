@@ -65,13 +65,38 @@ class MultitrackAudioDataset(data.Dataset):
         song_durations = []
 
         for song_name in self.songlist:
-            track_path = os.path.join(self._base_path, song_name, '{}_MIX.wav'.format(song_name))
+            song_path = os.path.join(self._base_path, song_name)
+
+            if os.path.exists(os.path.join(song_path, '{}_MIX.wav'.format(song_name))):
+                track_path = os.path.join(song_path, '{}_MIX.wav'.format(song_name))
+            else:
+                track_path = os.path.join(song_path, 'mixture.wav')
+
             song_duration = librosa.get_duration(filename=track_path, sr=self._sr)
             # trimmed song duration in seconds
             song_durations.append(song_duration - (song_duration % self._chunk_length))
 
             dataset_len += int(song_duration / self._chunk_length)
         return dataset_len, song_durations
+
+    def _get_medleydb_track_path(self, song_name, track_name):
+        song_path = os.path.join(self._base_path, song_name)
+
+        if track_name == 'mix':
+            track_path = os.path.join(song_path, '{}_MIX.wav'.format(song_name))
+        else:
+            track_path = os.path.join(song_path, '{}_STEMS_JOINED'.format(song_name),
+                                      '{}_STEM_{}.wav'.format(song_name, track_name.upper()))
+        return track_path
+
+    def _get_musdb18_track_path(self, song_name, track_name):
+        song_path = os.path.join(self._base_path, song_name)
+
+        if track_name == 'mix':
+            track_path = os.path.join(song_path, 'mixture.wav')
+        else:
+            track_path = os.path.join(song_path, '{}.wav'.format(track_name))
+        return track_path
 
     def _load_tracks(self, song_i: int):
         """
@@ -84,12 +109,15 @@ class MultitrackAudioDataset(data.Dataset):
         song_name = self.songlist[song_i]
         song_path = os.path.join(self._base_path, song_name)
 
+        is_medleydb = False
+        if os.path.exists(os.path.join(song_path, '{}_MIX.wav'.format(song_name))):
+            is_medleydb = True
+
         for track_name in self._tracklist:
-            if track_name == 'mix':
-                track_path = os.path.join(song_path, '{}_MIX.wav'.format(song_name))
+            if is_medleydb:
+                track_path = self._get_medleydb_track_path(song_name, track_name)
             else:
-                track_path = os.path.join(song_path, '{}_STEMS_JOINED'.format(song_name),
-                                          '{}_STEM_{}.wav'.format(song_name, track_name.upper()))
+                track_path = self._get_musdb18_track_path(song_name, track_name)
 
             track, _ = librosa.load(track_path, sr=self._sr)
             # trim the track length to be a multiple of self._chunk_length
