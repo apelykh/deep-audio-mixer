@@ -3,74 +3,89 @@ import soundfile as sf
 import librosa
 import torch
 import json
+import pickle
 import numpy as np
 import pyloudnorm as pyln
 from statistics import mean
 from collections import OrderedDict
 from inference_utils import mix_song_smooth
 from data.dataset import MultitrackAudioDataset
-from models.model_scalar_1s import MixingModelScalar1s
 from data.dataset_utils import load_tracks_musdb18
+from data.medleydb_split import weathervane_music
+
+from models.model_scalar_1s import MixingModelScalar1s
+from models.model_scalar_2s import MixingModelScalar2s
+from models.baselines.mean_loudness_model import MeanLoudnessModel
+from models.baselines.random_model import RandomModel
 
 
 class LoudnessEvaluator:
-    def __init__(self, dataset, model, seed=123):
+    def __init__(self, dataset, d_mean_loudness, mix_model, sr=44100, seed=None):
         if seed:
             np.random.seed(seed)
 
+        self.sr = sr
         self.d = dataset
-        self.model = model
+        self.mix_model = mix_model
+        self.mean_loudness_model = MeanLoudnessModel(d_mean_loudness)
+        self.random_model = RandomModel()
+
+        self.keys = ('bass', 'drums', 'vocals', 'other')
+
         self.results_dir = './experiment'
         if not os.path.exists(self.results_dir):
             os.makedirs(self.results_dir)
 
-    def process_song(self, loaded_tracks: dict, song_name, n_experiments=5):
-        keys = ['bass', 'drums', 'vocals', 'other']
-        stats = {
-            'song_name': song_name,
-            'reference': {},
-            'sums': [],
-            'mixes': []
-        }
+    def evaluate_loudness(self, tracks: dict) -> list:
+        assert 'mix' in tracks, 'Mix has to be in track dict for evaluation'
 
-        track_sum = np.array(list(loaded_tracks.values()))
-        track_sum = np.sum(track_sum, axis=0)
-        track_sum = librosa.util.normalize(track_sum, axis=1)
-        sf.write(os.path.join(self.results_dir, '{}_reference.wav'.format(song_name)), track_sum.T, 44100)
+        per_track_loudness = []
+        meter = pyln.Meter(self.sr)
 
-        ref_loudness = LoudnessEvaluator.evaluate_loudness(loaded_tracks)
-        loudness_dict = OrderedDict(zip(keys, ref_loudness))
-        stats['reference'] = loudness_dict
+        mix_loudness = meter.integrated_loudness(tracks['mix'].T)
 
-        for exp_i in range(n_experiments):
-            print('Run {}/{}'.format(exp_i, n_experiments))
-            random_gains = np.random.uniform(0.3, 1.7, size=4)
+        for track_name in self.keys:
+            track_loudness = meter.integrated_loudness(tracks[track_name].T)
+            # print('{} loudness: {:.5f}'.format(track_name.upper(), track_loudness))
+            per_track_loudness.append(track_loudness / mix_loudness)
 
-            gained_tracks = {}
-            for i, track in enumerate(loaded_tracks):
-                if track != 'mix':
-                    gained_tracks[track] = random_gains[i] * loaded_tracks[track]
+        return per_track_loudness
 
-            gained_sum = np.array(list(gained_tracks.values()))
-            gained_sum = np.sum(gained_sum, axis=0)
-            gained_tracks['mix'] = gained_sum
+    def _sum_and_evaluate_tracks(self, track_dict, song_name, identifier, add_mix_to_dict=True,
+                                 write_to_disc=True) -> dict:
+        track_arr = np.array(list(track_dict.values()))
+        track_sum = np.sum(track_arr, axis=0)
 
-            gained_sum = librosa.util.normalize(gained_sum, axis=1)
-            sf.write(os.path.join(self.results_dir, '{}_sum_{}.wav'.format(song_name, exp_i)), gained_sum.T, 44100)
+        if add_mix_to_dict:
+            track_dict['mix'] = track_sum
 
-            # 1. loudness of gained tracks: supposed to be further from the reference
-            gained_loudness = LoudnessEvaluator.evaluate_loudness(gained_tracks)
-            loudness_dict = OrderedDict(zip(keys, gained_loudness))
-            stats['sums'].append(loudness_dict)
+        if write_to_disc:
+            track_sum = librosa.util.normalize(track_sum, axis=1)
+            sf.write(os.path.join(self.results_dir, '{}_{}.wav'.format(song_name, identifier)),
+                     track_sum.T, self.sr)
 
-            # 2. loudness of mixed tracks
-            mixed_tracks, _, _ = mix_song_smooth(self.d, self.model, gained_tracks)
-            mix_loudness = LoudnessEvaluator.evaluate_loudness(mixed_tracks)
-            loudness_dict = OrderedDict(zip(keys, mix_loudness))
-            stats['mixes'].append(loudness_dict)
+        ref_loudness = self.evaluate_loudness(track_dict)
+        loudness_dict = OrderedDict(zip(self.keys, ref_loudness))
 
-            mix = librosa.util.normalize(mixed_tracks['mix'], axis=1)
-            sf.write(os.path.join(self.results_dir, '{}_mixed_{}.wav'.format(song_name, exp_i)), mix.T, 44100)
+        return loudness_dict
+
+    def process_song(self, loaded_tracks: dict, song_name: str) -> dict:
+        stats = dict()
+
+        # naive sum of loaded multitracks - best mix (MUSDB18)
+        stats['reference'] = self._sum_and_evaluate_tracks(loaded_tracks, song_name, 'reference', False)
+
+        # sum of multitracks with random gains
+        random_mix_tracks = self.random_model.forward(loaded_tracks)
+        stats['random'] = self._sum_and_evaluate_tracks(random_mix_tracks, song_name, 'random')
+
+        # each multitrack is normalized to the mean loudness of the corresponding track from train set
+        loudnorm_tracks = self.mean_loudness_model.forward(loaded_tracks)
+        stats['loudnorm'] = self._sum_and_evaluate_tracks(loudnorm_tracks, song_name, 'loudnorm')
+
+        # mixed by the model
+        mixed_tracks, _, _ = mix_song_smooth(self.d, self.mix_model, random_mix_tracks, chunk_length=1)
+        stats['mix'] = self._sum_and_evaluate_tracks(mixed_tracks, song_name, 'mix')
 
         return stats
 
@@ -83,38 +98,15 @@ class LoudnessEvaluator:
         return float(np.sum(diffs))
 
     def postprocess_song_stats(self, stats: dict):
-        mix_errors = []
-        sum_errors = []
+        random_error = LoudnessEvaluator.\
+            _calculate_diff_between_loudness_dicts(stats['random'], stats['reference'])
+        loudnorm_error = LoudnessEvaluator. \
+            _calculate_diff_between_loudness_dicts(stats['loudnorm'], stats['reference'])
+        mix_error = LoudnessEvaluator. \
+            _calculate_diff_between_loudness_dicts(stats['mix'], stats['reference'])
 
-        for run_i in range(len(stats['mixes'])):
-            sum_ref_error = LoudnessEvaluator.\
-                _calculate_diff_between_loudness_dicts(stats['sums'][run_i], stats['reference'])
-            mix_ref_error = LoudnessEvaluator. \
-                _calculate_diff_between_loudness_dicts(stats['mixes'][run_i], stats['reference'])
-
-            mix_errors.append(mix_ref_error)
-            sum_errors.append(sum_ref_error)
-            print('Run {}: sum error: {:.5f}, mix_error: {:.5f}'.
-                  format(run_i, sum_ref_error, mix_ref_error))
-
-        print('-' * 80)
-        print('Mean sum error: {:.5f}, mean mix error: {:.5f}'.
-              format(mean(sum_errors), mean(mix_errors)))
-
-    @staticmethod
-    def evaluate_loudness(tracks: dict) -> list:
-        per_track_loudness = []
-        meter = pyln.Meter(44100, filter_class="Fenton/Lee 1")  # create BS.1770 meter
-
-        mix_loudness = meter.integrated_loudness(tracks['mix'].T)
-
-        for track_name in tracks:
-            if track_name != 'mix':
-                track_loudness = meter.integrated_loudness(tracks[track_name].T)
-                # print('{} loudness: {:.5f}'.format(track_name.upper(), track_loudness))
-                per_track_loudness.append(track_loudness / mix_loudness)
-
-        return per_track_loudness
+        print('Random error: {:.5f}\nloudnorm error: {:.5f}\nmix_error: {:.5f}'.
+              format(random_error, loudnorm_error, mix_error))
 
 
 if __name__ == '__main__':
@@ -126,25 +118,42 @@ if __name__ == '__main__':
     seed = 321
     chunk_length = 1
 
+    train_songlist = ['PortStWillow_StayEven', 'HeladoNegro_MitadDelMundo', 'Lushlife_ToynbeeSuite', 'FamilyBand_Again',
+                      'SweetLights_YouLetMeDown', 'AvaLuna_Waterduct', 'TheSoSoGlos_Emergency', 'PurlingHiss_Lolita',
+                      'TheDistricts_Vermont', 'BigTroubles_Phantom', 'AClassicEducation_NightOwl',
+                      'Auctioneer_OurFutureFaces', 'InvisibleFamiliars_DisturbingWildlife', 'SecretMountains_HighHorse',
+                      'Grants_PunchDrunk', 'Snowmine_Curfews', 'NightPanther_Fire', 'HezekiahJones_BorrowedHeart',
+                      'DreamersOfTheGhetto_HeavyLove', 'HopAlong_SisterCities']
+
+    val_songlist = ['StevenClark_Bounty', 'StrandOfOaks_Spacestation', 'CelestialShore_DieForUs',
+                    'FacesOnFilm_WaitingForGa', 'Creepoid_OldTree']
+
     d = MultitrackAudioDataset(
         base_path,
-        songlist=[],
+        songlist=train_songlist,
         chunk_length=chunk_length,
         normalize=False,
-        compute_features=False
+        compute_features=True
     )
 
+    if not os.path.exists('./mean_loudness.pkl'):
+        mean_loudness = d.compute_mean_loudness()
+        with open("mean_loudness.pkl", "wb") as f:
+            pickle.dump(mean_loudness, f)
+    else:
+        with open("mean_loudness.pkl", "rb") as f:
+            mean_loudness = pickle.load(f)
+
     model = MixingModelScalar1s().to(device)
-    weights = './saved_models/training-ignite-unnorm-70-epochs-135.08-val-loss-fter-bugfix/scalar2d_scalar2d_5658.pt'
+    weights = './saved_models/from_server/20-08-2020-20:06_training_4masks_unnorm_1s_medleydb/best_scalar1s_62_neg_train_loss=-130.4279.pt'
     model.load_state_dict(torch.load(weights, map_location=device))
 
     base_dir = '/media/apelykh/bottomless-pit/datasets/mixing/MUSDB18HQ/test/'
-    song_name = 'Moosmusic - Big Dummy Shake'
+    song_name = 'PR - Oh No'
     loaded_tracks = load_tracks_musdb18(base_dir, song_name)
 
-    l_eval = LoudnessEvaluator(d, model)
-    stats = l_eval.process_song(OrderedDict(loaded_tracks), song_name, n_experiments=3)
+    l_eval = LoudnessEvaluator(d, mean_loudness, model)
+    stats = l_eval.process_song(OrderedDict(loaded_tracks), song_name)
 
     print(json.dumps(stats, indent=4))
-
     l_eval.postprocess_song_stats(stats)

@@ -126,8 +126,6 @@ def mix_song_smooth(dataset, model, loaded_tracks: dict, chunk_length=1, sr=4410
                 gain = scalar_dB_to_amplitude(gain)
                 raw_gains[track].append(float(gain))
 
-    # any track can be used as a reference, they all have the same length
-    # mixed_song = np.zeros_like(loaded_tracks['drums'])
     smooth_gains = {track: [] for track in ['bass', 'drums', 'vocals', 'other']}
     mixed_tracks = {}
 
@@ -136,14 +134,6 @@ def mix_song_smooth(dataset, model, loaded_tracks: dict, chunk_length=1, sr=4410
         smoothed_gains = savgol_filter(raw_gains[track], 51, 2)
         smooth_gains[track].extend(smoothed_gains)
         mask = interpolate_mask(smoothed_gains, len(loaded_tracks[track][0]))
-        # mixed_song += loaded_tracks[track] * mask
         mixed_tracks[track] = loaded_tracks[track] * mask
-
-    assert len(raw_gains['bass']) == len(smooth_gains['bass'])
-
-    mixed_song = np.array(list(mixed_tracks.values()))
-    mixed_tracks['mix'] = np.sum(mixed_song, axis=0)
-
-    # mixed_song = librosa.util.normalize(mixed_song, axis=1)
 
     return mixed_tracks, raw_gains, smooth_gains

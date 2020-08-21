@@ -16,7 +16,7 @@ def amplitude_to_dB(x: torch.Tensor):
     return 20 * torch.log10(x)
 
 
-class ModelDummy(nn.Module):
+class DummyModel(nn.Module):
     def __init__(self):
         super().__init__()
 
