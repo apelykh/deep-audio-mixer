@@ -96,7 +96,7 @@ class MultitrackAudioDataset(data.Dataset):
             track_path = os.path.join(song_path, '{}.wav'.format(track_name))
         return track_path
 
-    def _load_tracks(self, song_i: int):
+    def _load_tracks(self, song_i: int, randomize_gains: bool = False):
         """
         Cache a song to avoid reading if from disk every time.
         Should be kept in cache until all its chunks are used.
@@ -118,6 +118,11 @@ class MultitrackAudioDataset(data.Dataset):
                 track_path = self._get_musdb18_track_path(song_name, track_name)
 
             track, _ = librosa.load(track_path, sr=self._sr)
+
+            if randomize_gains:
+                random_gain = np.random.uniform(0.4, 1.6)
+                track *= random_gain
+
             # trim the track length to be a multiple of self._chunk_length
             len_samples = int(self.song_durations[song_i] * self._sr)
             # peak normalization? does not influence STFT
@@ -213,7 +218,8 @@ class MultitrackAudioDataset(data.Dataset):
         if not self._loaded_track or self._loaded_track_i != song_i:
             self._unload_tracks()
             # cache the song not to load it every time
-            self._load_tracks(song_i)
+            # TODO: remember!
+            self._load_tracks(song_i, randomize_gains=True)
 
         free_chunks = np.nonzero(self._track_mask)[0]
         random.seed(None)

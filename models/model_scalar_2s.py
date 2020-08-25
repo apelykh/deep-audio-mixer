@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from data.dataset import MultitrackAudioDataset
-from data.medleydb_split import weathervane_music
+from data.songlists import medleydb_weathervane_music
 
 
 class ConvBlock2d(nn.Module):
@@ -138,7 +138,7 @@ if __name__ == '__main__':
 
     d_train = MultitrackAudioDataset(
         '/media/apelykh/bottomless-pit/datasets/mixing/MedleyDB/Audio',
-        songlist=weathervane_music,
+        songlist=medleydb_weathervane_music,
         chunk_length=1,
         seed=321,
         normalize=False

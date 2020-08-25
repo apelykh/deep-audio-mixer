@@ -2,6 +2,9 @@ import numpy as np
 import torch
 from scipy.signal import savgol_filter
 from data.dataset_utils import scalar_dB_to_amplitude
+from models.model_scalar_1s import MixingModelScalar1s
+from data.dataset import MultitrackAudioDataset
+from data.dataset_utils import load_tracks, load_tracks_musdb18
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -137,3 +140,30 @@ def mix_song_smooth(dataset, model, loaded_tracks: dict, chunk_length=1, sr=4410
         mixed_tracks[track] = loaded_tracks[track] * mask
 
     return mixed_tracks, raw_gains, smooth_gains
+
+
+if __name__ == '__main__':
+    base_path = '/media/apelykh/bottomless-pit/datasets/mixing/MedleyDB/Audio'
+    chunk_length = 1
+
+    model = MixingModelScalar1s().to(device)
+    num_trainable_param = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print('{} trainable parameters'.format(num_trainable_param))
+
+    weights = './saved_models/from_server/20-08-2020-20:06_training_4masks_unnorm_1s_medleydb_70_epochs_130.42_val_loss/best_scalar1s_62_neg_train_loss=-130.4279.pt'
+    model.load_state_dict(torch.load(weights, map_location=device))
+
+    d = MultitrackAudioDataset(
+        base_path,
+        songlist=[],
+        chunk_length=chunk_length,
+        normalize=False,
+        compute_features=False,
+        augment_data=False
+    )
+
+    base_dir = '/media/apelykh/bottomless-pit/datasets/mixing/MUSDB18HQ/test/'
+    song_name = 'Triviul feat. The Fiend - Widow'
+    loaded_tracks = load_tracks_musdb18(base_dir, song_name)
+
+    mixed_tracks, raw_gains, smooth_gains = mix_song_smooth(d, model, loaded_tracks, chunk_length=chunk_length)

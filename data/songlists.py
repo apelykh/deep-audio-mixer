@@ -1,5 +1,5 @@
 # Do not use, they are trashy for one reason or another
-exclude_songlist = [
+medleydb_exclude = [
     'AmarLal_Rest',
     'AmarLal_SpringDay1',
     'BrandonWebster_DontHearAThing',
@@ -57,49 +57,7 @@ exclude_songlist = [
     'Wolf_DieBekherte'                            # classics
 ]
 
-# train_songlist = [
-#     'AClassicEducation_NightOwl',
-#     'AimeeNorwich_Child',
-#     'AimeeNorwich_Flying',
-#     'AlexanderRoss_GoodbyeBolero',
-#     'AlexanderRoss_VelvetCurtain',
-#     'Auctioneer_OurFutureFaces',
-#     'AvaLuna_Waterduct',
-#     'BigTroubles_Phantom',
-#     'CelestialShore_DieForUs',
-#     'ChrisJacoby_PigsFoot',                       # instrumental
-#     'ClaraBerryAndWooldog_AirTraffic',
-#     'ClaraBerryAndWooldog_Boys',
-#     'ClaraBerryAndWooldog_Stella',
-#     'ClaraBerryAndWooldog_WaltzForMyVictims',
-#     'Creepoid_OldTree',
-#     'CroqueMadame_Oil',                           # instrumental
-#     'CroqueMadame_Pilot',                         # instrumental
-#     'DreamersOfTheGhetto_HeavyLove',
-#     'FacesOnFilm_WaitingForGa',
-#     'FamilyBand_Again',
-#     'Grants_PunchDrunk',                          # rap
-#     'HeladoNegro_MitadDelMundo',
-#     'HezekiahJones_BorrowedHeart',
-#     'HopAlong_SisterCities',
-#     'InvisibleFamiliars_DisturbingWildlife',
-#     'KarimDouaidy_Hopscotch',                     # instrumental
-#     'KarimDouaidy_Yatora',                        # instrumental
-#     'Lushlife_ToynbeeSuite',
-#     'MatthewEntwistle_DontYouEver',
-#     'NightPanther_Fire',
-#     'PortStWillow_StayEven',
-#     'SecretMountains_HighHorse',
-#     'Snowmine_Curfews',
-#     'StevenClark_Bounty',
-#     'StrandOfOaks_Spacestation',
-#     'SweetLights_YouLetMeDown',
-#     'TheDistricts_Vermont',
-#     'TheSoSoGlos_Emergency'
-# ]
-
-
-weathervane_music = [
+medleydb_weathervane_music = [
     'AClassicEducation_NightOwl',
     'Auctioneer_OurFutureFaces',
     'AvaLuna_Waterduct',
@@ -127,7 +85,41 @@ weathervane_music = [
     'TheDistricts_Vermont'
 ]
 
-musdb18_not_in_medleydb = [
+medleydb_independent = [
+    "AimeeNorwich_Child",
+    "AimeeNorwich_Flying",
+    "AlexanderRoss_GoodbyeBolero",
+    "AlexanderRoss_VelvetCurtain",
+    "AmarLal_Rest",
+    "AmarLal_SpringDay1",
+    "MatthewEntwistle_AnEveningWithOliver",
+    "MatthewEntwistle_DontYouEver",
+    "MatthewEntwistle_FairerHopes",
+    "MatthewEntwistle_ImpressionsOfSaturn",
+    "MatthewEntwistle_Lontano",
+    "MatthewEntwistle_TheArch",
+    "MatthewEntwistle_TheFlaxenField",
+    "Meaxic_TakeAStep",
+    "Meaxic_YouListen",
+    "ClaraBerryAndWooldog_WaltzForMyVictims",
+    "CroqueMadame_Oil",
+    "CroqueMadame_Pilot",
+    "EthanHein_1930sSynthAndUprightBass",
+    "EthanHein_BluesForNofi",
+    "EthanHein_GirlOnABridge",
+    "EthanHein_HarmonicaFigure",
+    "TheScarletBrand_LesFleursDuMal",
+    "ClaraBerryAndWooldog_AirTraffic",
+    "ClaraBerryAndWooldog_Boys",
+    "ClaraBerryAndWooldog_Stella",
+    "ClaraBerryAndWooldog_TheBadGuys",
+    "JoelHelander_Definition",
+    "JoelHelander_ExcessiveResistancetoChange",
+    "JoelHelander_IntheAtticBedroom"
+]
+
+
+musdb18_train_not_in_medleydb = [
     "Actions - Devil's Words",
     "Actions - One Minute Smile",
     "Actions - South Of The Water",
@@ -183,6 +175,71 @@ musdb18_not_in_medleydb = [
     "Young Griffo - Blood To Bone",
     "Young Griffo - Facade",
     "Young Griffo - Pennies"
+]
+
+musdb18_test = [
+    "Al James - Schoolboy Facination",
+    "AM Contra - Heart Peripheral",
+    "Angels In Amplifiers - I'm Alright",
+    "Arise - Run Run Run",
+    "Ben Carrigan - We'll Talk About It All Tonight",
+    "BKS - Bulldozer",
+    "BKS - Too Much",
+    "Bobby Nobody - Stitch Up",
+    "Buitraker - Revo X",
+    "Carlos Gonzalez - A Place For Us",
+    "Cristina Vane - So Easy",
+    "Detsky Sad - Walkie Talkie",
+    "Enda Reilly - Cur An Long Ag Seol",
+    "Forkupines - Semantics",
+    "Georgia Wonder - Siren",
+    "Girls Under Glass - We Feel Alright",
+    "Hollow Ground - Ill Fate",
+    "James Elder & Mark M Thompson - The English Actor",
+    "Juliet's Rescue - Heartbeats",
+    "Little Chicago's Finest - My Own",
+    "Louis Cressy Band - Good Time",
+    "Lyndsey Ollard - Catching Up",
+    "M.E.R.C. Music - Knockout",
+    "Moosmusic - Big Dummy Shake",
+    "Motor Tapes - Shore",
+    "Mu - Too Bright",
+    "Nerve 9 - Pray For The Rain",
+    "PR - Happy Daze",
+    "PR - Oh No",
+    "Punkdisco - Oral Hygiene",
+    "Raft Monk - Tiring",
+    "Sambasevam Shanmugam - Kaathaadi",
+    "Secretariat - Borderline",
+    "Secretariat - Over The Top",
+    "Side Effects Project - Sing With Me",
+    "Signe Jakobsen - What Have You Done To Me",
+    "Skelpolu - Resurrection",
+    "Speak Softly - Broken Man",
+    "Speak Softly - Like Horses",
+    "The Doppler Shift - Atrophy",
+    "The Easton Ellises (Baumi) - SDRNR",
+    "The Easton Ellises - Falcon 69",
+    "The Long Wait - Dark Horses",
+    "The Mountaineering Club - Mallory",
+    "The Sunshine Garcia Band - For I Am The Moon",
+    "Timboz - Pony",
+    "Tom McKenzie - Directions",
+    "Triviul feat. The Fiend - Widow",
+    "We Fell From The Sky - Not You",
+    "Zeno - Signs"
+]
+
+musdb18_test_manually_gain_mixed = [
+    "Arise - Run Run Run",
+    "BKS - Bulldozer",
+    "Cristina Vane - So Easy",
+    "Enda Reilly - Cur An Long Ag Seol",
+    "Forkupines - Semantics",
+    "Signe Jakobsen - What Have You Done To Me",
+    "The Doppler Shift - Atrophy",
+
+    "Meaxic_YouListen"
 ]
 
 
