@@ -158,11 +158,12 @@ class MultitrackAudioDataset(data.Dataset):
         return song_i, chunk_i
 
     def compute_mean_loudness(self) -> dict:
+        print('[.] Computing mean loudness...')
         loudness = {track_name: [] for track_name in self._tracklist}
         meter = pyln.Meter(self._sr)
 
         for song_i, song_name in enumerate(self.songlist):
-            print('{}/{}: {}'.format(song_i, len(self.songlist), song_name))
+            print('{}/{}: {}'.format(song_i + 1, len(self.songlist), song_name))
             song_path = os.path.join(self._base_path, song_name)
 
             is_medleydb = False
@@ -176,7 +177,6 @@ class MultitrackAudioDataset(data.Dataset):
                 track, _ = librosa.load(track_path, sr=self._sr)
                 track_loudness = meter.integrated_loudness(track)
                 loudness[track_name].append(track_loudness)
-                print(track_loudness)
 
         mean_loudness = {track_name: mean(loudness[track_name]) for track_name in loudness}
         return mean_loudness

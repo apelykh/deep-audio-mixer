@@ -134,7 +134,10 @@ def mix_song_smooth(dataset, model, loaded_tracks: dict, chunk_length=1, sr=4410
 
     # TODO: if works, remove interpolation and rewrite the pipeline in a separate abstraction
     for track in raw_gains:
-        smoothed_gains = savgol_filter(raw_gains[track], 51, 2)
+        win_len_candidate = int(num_chunks / 4)
+        # should be odd
+        filter_win_len = win_len_candidate if win_len_candidate % 2 else win_len_candidate + 1
+        smoothed_gains = savgol_filter(raw_gains[track], filter_win_len, 2)
         smooth_gains[track].extend(smoothed_gains)
         mask = interpolate_mask(smoothed_gains, len(loaded_tracks[track][0]))
         mixed_tracks[track] = loaded_tracks[track] * mask
