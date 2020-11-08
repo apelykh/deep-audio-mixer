@@ -61,6 +61,7 @@ def load_tracks(base_dir, song_name,
         else:
             track_path = os.path.join(base_dir, song_name, '{}_STEMS_JOINED'.format(song_name),
                                       '{}_STEM_{}.wav'.format(song_name, track.upper()))
+        # TODO: switch to soundfile.read()
         audio, _ = librosa.load(track_path, sr=sr, mono=False)
         loaded_tracks[track] = audio
 
@@ -75,6 +76,7 @@ def load_tracks_musdb18(base_dir, song_name,
     for track in tracklist:
         track_name = 'mixture' if track == 'mix' else track
         track_path = os.path.join(base_dir, song_name, '{}.wav'.format(track_name))
+        # TODO: switch to soundfile.read()
         audio, _ = librosa.load(track_path, sr=sr, mono=False)
         loaded_tracks[track] = audio
 

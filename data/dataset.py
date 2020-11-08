@@ -1,21 +1,26 @@
 import os
 import random
 import numpy as np
-import librosa
+import soundfile as sf
 import pyloudnorm as pyln
+import librosa
+import time
+import torch
+import torchaudio.functional
 from torch.utils import data
 from statistics import mean
 
+# TODO: switch sequential sampling order to random sampling
+
 
 class MultitrackAudioDataset(data.Dataset):
-    def __init__(self, base_path: str, songlist: list = None, chunk_length: int = 1,
+    def __init__(self, base_path: str, songlist: list = None, chunk_length: int = 5,
                  sr: int = 44100, seed: int = None, normalize: bool = False,
-                 compute_features: bool = False, augment_data: bool = True):
+                 compute_features: bool = True, augment_data: bool = False):
         """
         Dataset with song caching for quicker load. A song stays in cache until the
         features were not computed for all its chunks.
         Consequences:
-        - probably won't work with multiprocessing so don't set multiple workers in DataLoader :(
         - although a song list can be shuffled, chunks from each individual song
             will be yielded sequentially;
 
@@ -35,9 +40,6 @@ class MultitrackAudioDataset(data.Dataset):
         self._augment = augment_data
         self._sr = sr
         self._tracklist = ['bass', 'drums', 'vocals', 'other', 'mix']
-        self._track_mask = None
-        self._loaded_track_i = None
-        self._loaded_track = {}
 
         if not songlist:
             songlist = [song_name for song_name in os.listdir(self._base_path) if
@@ -64,20 +66,15 @@ class MultitrackAudioDataset(data.Dataset):
 
         for song_name in self.songlist:
             song_path = os.path.join(self._base_path, song_name)
-
-            if os.path.exists(os.path.join(song_path, '{}_MIX.wav'.format(song_name))):
-                track_path = os.path.join(song_path, '{}_MIX.wav'.format(song_name))
-            else:
-                track_path = os.path.join(song_path, 'mixture.wav')
-
-            song_duration = librosa.get_duration(filename=track_path, sr=self._sr)
+            track_path = os.path.join(song_path, '{}_MIX.wav'.format(song_name))
+            song_duration = int(sf.info(track_path).duration)
             # trimmed song duration in seconds
             song_durations.append(song_duration - (song_duration % self._chunk_length))
-
             dataset_len += int(song_duration / self._chunk_length)
+
         return dataset_len, song_durations
 
-    def _get_medleydb_track_path(self, song_name, track_name):
+    def _get_track_path(self, song_name, track_name):
         song_path = os.path.join(self._base_path, song_name)
 
         if track_name == 'mix':
@@ -87,73 +84,31 @@ class MultitrackAudioDataset(data.Dataset):
                                       '{}_STEM_{}.wav'.format(song_name, track_name.upper()))
         return track_path
 
-    def _get_musdb18_track_path(self, song_name, track_name):
-        song_path = os.path.join(self._base_path, song_name)
-
-        if track_name == 'mix':
-            track_path = os.path.join(song_path, 'mixture.wav')
-        else:
-            track_path = os.path.join(song_path, '{}.wav'.format(track_name))
-        return track_path
-
-    def _load_tracks(self, song_i: int, randomize_gains: bool = False):
-        """
-        Cache a song to avoid reading if from disk every time.
-        Should be kept in cache until all its chunks are used.
-
-        :param song_i: index of the song to cache;
-        """
-        self._loaded_track_i = song_i
-        song_name = self.songlist[song_i]
-        song_path = os.path.join(self._base_path, song_name)
-
-        is_medleydb = False
-        if os.path.exists(os.path.join(song_path, '{}_MIX.wav'.format(song_name))):
-            is_medleydb = True
-
-        for track_name in self._tracklist:
-            if is_medleydb:
-                track_path = self._get_medleydb_track_path(song_name, track_name)
-            else:
-                track_path = self._get_musdb18_track_path(song_name, track_name)
-
-            track, _ = librosa.load(track_path, sr=self._sr)
-
-            if randomize_gains:
-                random_gain = np.random.uniform(0.4, 1.6)
-                track *= random_gain
-
-            # trim the track length to be a multiple of self._chunk_length
-            len_samples = int(self.song_durations[song_i] * self._sr)
-            # peak normalization? does not influence STFT
-            self._loaded_track[track_name] = librosa.util.normalize(track[:len_samples])
-
-        num_chunks = int(self.song_durations[song_i] / self._chunk_length)
-        # mask will show which track chunks were already used
-        self._track_mask = np.ones(num_chunks, dtype=np.int8)
-
-    def _unload_tracks(self):
-        """
-        Reset the song cache
-        """
-        self._loaded_track = {}
-        self._track_mask = None
-        self._loaded_track_i = None
+    # # TODO: stop using MUSDB18 for training -> remove the support for file naming?
+    # def _get_musdb18_track_path(self, song_name, track_name):
+    #     song_path = os.path.join(self._base_path, song_name)
+    #
+    #     if track_name == 'mix':
+    #         track_path = os.path.join(song_path, 'mixture.wav')
+    #     else:
+    #         track_path = os.path.join(song_path, '{}.wav'.format(track_name))
+    #     return track_path
 
     def _calculate_song_index(self, chunk_i: int) -> tuple:
         """
         Calculate an index of the song in a song list, based on the chunk index.
 
         :param chunk_i: global index of the song chunk in range [0, len(dataset)];
-        TODO: update
-        :return: index of the song in a song list, the chunk is taken from;
+        :return: [0]: index of the song in a song list, the chunk is taken from;
+                 [1]: index of a chunk in the song;
         """
         song_i = 0
+        num_chunks_in_song = int(self.song_durations[song_i] / self._chunk_length)
 
-        while int(self.song_durations[song_i] / self._chunk_length) <= chunk_i and \
-                song_i < len(self.songlist) - 1:
-            chunk_i -= int(self.song_durations[song_i] / self._chunk_length)
+        while chunk_i >= num_chunks_in_song and song_i < len(self.songlist) - 1:
+            chunk_i -= num_chunks_in_song
             song_i += 1
+            num_chunks_in_song = int(self.song_durations[song_i] / self._chunk_length)
 
         return song_i, chunk_i
 
@@ -164,17 +119,10 @@ class MultitrackAudioDataset(data.Dataset):
 
         for song_i, song_name in enumerate(self.songlist):
             print('{}/{}: {}'.format(song_i + 1, len(self.songlist), song_name))
-            song_path = os.path.join(self._base_path, song_name)
-
-            is_medleydb = False
-            if os.path.exists(os.path.join(song_path, '{}_MIX.wav'.format(song_name))):
-                is_medleydb = True
 
             for track_name in self._tracklist:
-                track_path = self._get_medleydb_track_path(song_name, track_name)\
-                    if is_medleydb else self._get_musdb18_track_path(song_name, track_name)
-
-                track, _ = librosa.load(track_path, sr=self._sr)
+                track_path = self._get_track_path(song_name, track_name)
+                track, _ = sf.read(track_path)
                 track_loudness = meter.integrated_loudness(track)
                 loudness[track_name].append(track_loudness)
 
@@ -182,24 +130,34 @@ class MultitrackAudioDataset(data.Dataset):
         return mean_loudness
 
     def compute_features(self, audio: np.ndarray, window_size: int = 2048,
-                         hop_length: int = 512) -> np.ndarray:
+                         hop_length: int = 1024):
         """
         Compute STFT features for an input audio.
         """
-        # if stereo, convert to mono
-        if len(audio.shape) == 2 and audio.shape[0] == 2:
-            audio = librosa.to_mono(audio)
+        # spectrum = librosa.stft(audio,
+        #                         n_fft=window_size,
+        #                         hop_length=hop_length,
+        #                         window=np.hanning(window_size))
+        # magnitudes = np.abs(spectrum)
+        # features = librosa.amplitude_to_db(magnitudes)
 
-        spectrum = librosa.stft(audio,
-                                n_fft=window_size,
-                                hop_length=hop_length,
-                                window=np.hanning(window_size))
-        magnitudes = np.abs(spectrum)
-        features = librosa.amplitude_to_db(magnitudes)
+        # -------------------------------------------------------------------------
+        spectrum = torch.stft(torch.from_numpy(audio),
+                              n_fft=window_size,
+                              hop_length=hop_length,
+                              window=torch.hann_window(window_size),
+                              return_complex=True)
+
+        magnitudes = torch.abs(spectrum)
+        features = torchaudio.functional.amplitude_to_DB(magnitudes,
+                                                         multiplier=20,
+                                                         amin=1e-5,
+                                                         db_multiplier=0)
+        # -------------------------------------------------------------------------
         # features = magnitudes
 
-        if self._normalize:
-            features = librosa.util.normalize(features)
+        # if self._normalize:
+        #     features = librosa.util.normalize(features)
 
         return features
 
@@ -209,54 +167,49 @@ class MultitrackAudioDataset(data.Dataset):
         random_gain = np.random.uniform(gain_from, gain_to)
         return random_gain * audio
 
-    def _process_on_the_fly(self, song_i) -> tuple:
-        """
-        The song is cached until all of its chunks are used. On each iteration the chunk
-        is chosen randomly among the free ones.
-        """
-
-        if not self._loaded_track or self._loaded_track_i != song_i:
-            self._unload_tracks()
-            # cache the song not to load it every time
-            # TODO: remember!
-            self._load_tracks(song_i, randomize_gains=True)
-
-        free_chunks = np.nonzero(self._track_mask)[0]
+    @staticmethod
+    def _augment_features(features: np.ndarray, gain_from: float = 0.6,
+                          gain_to: float = 1.4) -> np.ndarray:
         random.seed(None)
-        # index of a chunk in a current song
-        chunk_i = np.random.choice(free_chunks)
+        rangom_gains = np.random.uniform(gain_from, gain_to, size=len(features))
+        gains_db = 20 * np.log10(rangom_gains)
+        # np.newaxis added to broadcast the shape
+        augm_features = np.add(features, gains_db[:, np.newaxis, np.newaxis])
 
-        i_from = chunk_i * self._chunk_length * self._sr
-        i_to = (chunk_i + 1) * self._chunk_length * self._sr
-        sum_chunk = np.zeros(i_to - i_from)
+        return augm_features
+
+    @staticmethod
+    def _stereo_to_mono(audio: np.ndarray) -> np.array:
+        return np.mean(audio, axis=1)
+
+    def _process_on_the_fly(self, song_i: int, chunk_i: int) -> tuple:
+        song_name = self.songlist[song_i]
+        sample_from = chunk_i * self._chunk_length * self._sr
+        sample_to = (chunk_i + 1) * self._chunk_length * self._sr
         per_track_features = []
         gt_features = None
 
-        for track in self._tracklist:
-            audio_chunk = self._loaded_track[track][i_from:i_to]
+        for track_name in self._tracklist:
+            track_path = self._get_track_path(song_name, track_name)
+            audio_chunk, _ = sf.read(track_path, start=sample_from, stop=sample_to)
+            if audio_chunk.shape[1] == 2:
+                audio_chunk = self._stereo_to_mono(audio_chunk)
 
             if self._augment:
                 audio_chunk = MultitrackAudioDataset._augment_audio(audio_chunk)
 
             features = self.compute_features(audio_chunk)
-
-            if track == 'mix':
+            if track_name == 'mix':
                 gt_features = features
             else:
-                sum_chunk += audio_chunk
                 per_track_features.append(features)
 
-        train_features = np.stack(per_track_features)
-
-        # indicate that the current song chunk was used
-        self._track_mask[chunk_i] = 0
-        # if it was the last chunk of the current song, unload it
-        # to load a new one on the next iteration
-        if np.sum(self._track_mask) == 0:
-            self._unload_tracks()
+        train_features = torch.stack(per_track_features)
+        # train_features = np.stack(per_track_features)
 
         return train_features, gt_features
 
+    # TODO: update
     def _precompute_features(self):
         """
         Pre-compute features and save them to disk as .npy files.
@@ -297,17 +250,6 @@ class MultitrackAudioDataset(data.Dataset):
                         np.stack(per_track_features))
         print('[+] Features computed and saved')
 
-    @staticmethod
-    def _augment_features(features: np.ndarray, gain_from: float = 0.6,
-                          gain_to: float = 1.4) -> np.ndarray:
-        random.seed(None)
-        rangom_gains = np.random.uniform(gain_from, gain_to, size=len(features))
-        gains_db = 20 * np.log10(rangom_gains)
-        # np.newaxis added to broadcast the shape
-        augm_features = np.add(features, gains_db[:, np.newaxis, np.newaxis])
-
-        return augm_features
-
     def _process_precomputed(self, song_i, chunk_i) -> tuple:
         """
         Read pre-computed features from drive.
@@ -339,10 +281,13 @@ class MultitrackAudioDataset(data.Dataset):
         }
         """
         song_i, chunk_i = self._calculate_song_index(index)
-        # print('Song {}, chunk {}'.format(self.songlist[song_i], chunk_i))
+        print('Song {}, chunk {}'.format(self.songlist[song_i], chunk_i))
 
         if self._compute_features:
-            return self._process_on_the_fly(song_i)
+            tic = time.time()
+            train_features, gt_features = self._process_on_the_fly(song_i, chunk_i)
+            print('Features: {}'.format(time.time() - tic))
+            return train_features, gt_features
         else:
             return self._process_precomputed(song_i, chunk_i)
 
@@ -357,3 +302,26 @@ class MultitrackAudioDataset(data.Dataset):
 
     def get_tracklist(self) -> list:
         return self._tracklist
+
+
+if __name__ == '__main__':
+    import time
+
+    tic = time.time()
+    d = MultitrackAudioDataset(base_path='/media/apelykh/bottomless-pit/datasets/mixing/MedleyDB/Audio',
+                               chunk_length=5,
+                               normalize=False,
+                               compute_features=True,
+                               augment_data=False)
+    print('Dataset loaded in {}'.format(time.time() - tic))
+    print(len(d))
+    tic = time.time()
+    for i in range(100):
+        sample = d[i]
+        if i % 20 == 0:
+            print('{}/{}'.format(i, len(d)))
+    print('100 samples loaded in {}'.format(time.time() - tic))
+
+    # tic = time.time()
+    # mean_loudness = d.compute_mean_loudness()
+    # print('mean loudness computed in {}'.format(time.time() - tic))
